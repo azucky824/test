@@ -415,25 +415,36 @@ async function waitForPageTransition(expectedPage, timeout = 5000) {
  * キャプチャ処理を実行
  */
 async function performCapture() {
+  console.log('[Kindle to PDF] performCapture() が呼ばれました. isCapturing:', captureState.isCapturing);
+
   if (!captureState.isCapturing) {
+    console.warn('[Kindle to PDF] キャプチャが中止されています');
     return;
   }
 
   try {
     const currentPage = getCurrentPage();
+    console.log('[Kindle to PDF] 現在のページ:', currentPage);
+
     if (!currentPage) {
       throw new Error('現在のページ番号を取得できませんでした');
     }
 
     captureState.currentPage = currentPage;
 
-    // 進捗を通知
-    chrome.runtime.sendMessage({
-      action: 'UPDATE_PROGRESS',
+    const progressInfo = {
       current: currentPage - captureState.startPage + 1,
       total: captureState.endPage - captureState.startPage + 1,
       status: `ページ ${currentPage} をキャプチャ中...`
-    });
+    };
+
+    console.log('[Kindle to PDF] プログレス情報を送信:', progressInfo);
+
+    // 進捗を通知
+    chrome.runtime.sendMessage({
+      action: 'UPDATE_PROGRESS',
+      ...progressInfo
+    }).catch(err => console.warn('[Kindle to PDF] プログレス通知の送信に失敗:', err));
 
     // コンテンツエリアの座標を取得
     const contentArea = getContentArea();
@@ -534,7 +545,17 @@ async function startCapture(config) {
     // TODO: 開始ページに移動する機能を実装
   }
 
+  // 初期プログレスを通知
+  console.log('[Kindle to PDF] 初期プログレス通知を送信');
+  chrome.runtime.sendMessage({
+    action: 'UPDATE_PROGRESS',
+    current: 0,
+    total: captureState.endPage - captureState.startPage + 1,
+    status: 'キャプチャを開始します...'
+  }).catch(err => console.warn('[Kindle to PDF] プログレス通知の送信に失敗:', err));
+
   // キャプチャを開始
+  console.log('[Kindle to PDF] performCapture()を呼び出します');
   performCapture();
 }
 

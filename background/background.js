@@ -11,7 +11,15 @@ let captureData = {
   endPage: null,
   tabId: null,
   tableOfContents: null,
-  bookTitle: null
+  bookTitle: null,
+  // プログレス情報
+  progress: {
+    current: 0,
+    total: 0,
+    status: '',
+    error: null,
+    completed: false
+  }
 };
 
 /**
@@ -161,6 +169,18 @@ async function generatePDF(startPage, endPage, tableOfContents = null, bookTitle
 
     console.log(`[Kindle to PDF] PDF生成完了: ${filename}`);
 
+    // プログレス情報を更新
+    captureData.progress = {
+      current: captureData.progress.total,
+      total: captureData.progress.total,
+      status: `PDF生成完了: ${filename}`,
+      error: null,
+      completed: true
+    };
+
+    // バッジをクリア
+    chrome.action.setBadgeText({ text: '' });
+
     // Popup に完了通知
     chrome.runtime.sendMessage({
       action: 'CAPTURE_COMPLETE',
@@ -176,6 +196,19 @@ async function generatePDF(startPage, endPage, tableOfContents = null, bookTitle
 
   } catch (error) {
     console.error('[Kindle to PDF] PDF生成エラー:', error);
+
+    // プログレス情報にエラーを記録
+    captureData.progress = {
+      ...captureData.progress,
+      status: `エラー: ${error.message}`,
+      error: error.message,
+      completed: false
+    };
+    captureData.isCapturing = false;
+
+    // バッジにエラーを表示
+    chrome.action.setBadgeText({ text: '!' });
+    chrome.action.setBadgeBackgroundColor({ color: '#ea4335' });
 
     chrome.runtime.sendMessage({
       action: 'CAPTURE_ERROR',
@@ -403,20 +436,54 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         }
 
         case 'UPDATE_PROGRESS': {
-          // Popup に進捗を転送
-          chrome.runtime.sendMessage({
-            action: 'UPDATE_PROGRESS',
+          // プログレス情報を保存
+          captureData.progress = {
             current: message.current,
             total: message.total,
-            status: message.status
-          });
+            status: message.status,
+            error: null,
+            completed: false
+          };
+          captureData.isCapturing = true;
+
+          console.log('[Kindle to PDF Background] プログレス更新:', captureData.progress);
+
+          // バッジにプログレスを表示
+          const percentage = Math.round((message.current / message.total) * 100);
+          chrome.action.setBadgeText({ text: `${percentage}%` });
+          chrome.action.setBadgeBackgroundColor({ color: '#4285f4' });
+
           sendResponse({ success: true });
+          break;
+        }
+
+        case 'GET_PROGRESS': {
+          // popupからのプログレス問い合わせ
+          sendResponse({
+            success: true,
+            progress: captureData.progress
+          });
           break;
         }
 
         case 'CAPTURE_CANCELLED': {
           captureData.images = [];
           captureData.isCapturing = false;
+
+          // プログレス情報をリセット
+          captureData.progress = {
+            current: 0,
+            total: 0,
+            status: 'キャンセルされました',
+            error: null,
+            completed: false
+          };
+
+          // バッジをクリア
+          chrome.action.setBadgeText({ text: '' });
+
+          console.log('[Kindle to PDF Background] キャプチャをキャンセルしました');
+
           sendResponse({ success: true });
           break;
         }

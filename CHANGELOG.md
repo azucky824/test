@@ -39,6 +39,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - 必要に応じてコンテンツスクリプトを自動注入
   - PINGメカニズムで接続状態を確認
 
+- **プログレスバー表示とページ送りの問題を修正**
+  - ポップアップが閉じられてもプログレスを追跡できるように改善
+  - background.js: プログレス情報を保存し、GET_PROGRESSメッセージに対応
+  - popup.js: 500msごとにプログレスをポーリングする機能を追加
+  - chrome.action.setBadgeText()でアイコン上にプログレス(%)を表示
+  - ポップアップを再度開いたときに進行中のキャプチャを自動的に検出
+  - content.js, background.js: より詳細なデバッグログを追加
+
 ## [1.1.0] - 2025-01-16
 
 ### Added - Phase 2

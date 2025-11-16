@@ -20,6 +20,7 @@ const statusMessage = document.getElementById('statusMessage');
 // 状態管理
 let isCapturing = false;
 let currentTabId = null;
+let progressPollInterval = null;
 
 /**
  * ステータスメッセージを表示
@@ -50,10 +51,68 @@ function updateProgress(current, total) {
 }
 
 /**
+ * プログレスポーリングを開始
+ */
+function startProgressPolling() {
+  console.log('[Popup] プログレスポーリング開始');
+
+  // 既存のポーリングをクリア
+  if (progressPollInterval) {
+    clearInterval(progressPollInterval);
+  }
+
+  // 500msごとにプログレスを取得
+  progressPollInterval = setInterval(async () => {
+    try {
+      const response = await chrome.runtime.sendMessage({
+        action: 'GET_PROGRESS'
+      });
+
+      if (response && response.success && response.progress) {
+        const { current, total, status, error, completed } = response.progress;
+
+        console.log('[Popup] プログレス受信:', response.progress);
+
+        // プログレスバーとテキストを更新
+        if (total > 0) {
+          updateProgress(current, total);
+          progressText.textContent = status || 'キャプチャ中...';
+        }
+
+        // 完了またはエラーの場合、ポーリングを停止
+        if (completed) {
+          stopProgressPolling();
+          showStatus(status, 'success');
+          resetUI();
+        } else if (error) {
+          stopProgressPolling();
+          showStatus(status, 'error');
+          resetUI();
+        }
+      }
+    } catch (error) {
+      console.error('[Popup] プログレス取得エラー:', error);
+    }
+  }, 500);
+}
+
+/**
+ * プログレスポーリングを停止
+ */
+function stopProgressPolling() {
+  console.log('[Popup] プログレスポーリング停止');
+  if (progressPollInterval) {
+    clearInterval(progressPollInterval);
+    progressPollInterval = null;
+  }
+}
+
+/**
  * UIを初期状態にリセット
  */
 function resetUI() {
   isCapturing = false;
+  stopProgressPolling(); // ポーリングを停止
   startButton.style.display = 'flex';
   cancelButton.style.display = 'none';
   progressSection.style.display = 'none';
@@ -223,6 +282,8 @@ async function handleStartCapture() {
 
     if (response && response.success) {
       showStatus('キャプチャを開始しました', 'success');
+      // プログレスポーリングを開始
+      startProgressPolling();
     } else {
       throw new Error(response?.error || 'キャプチャの開始に失敗しました');
     }
@@ -307,7 +368,34 @@ async function init() {
     startButton.disabled = true;
     return;
   }
+
+  // 進行中のキャプチャがあるか確認
+  try {
+    const response = await chrome.runtime.sendMessage({
+      action: 'GET_PROGRESS'
+    });
+
+    if (response && response.success && response.progress) {
+      const { current, total, error, completed } = response.progress;
+
+      // キャプチャが進行中の場合、UIを更新してポーリングを開始
+      if (!completed && !error && total > 0) {
+        console.log('[Popup] 進行中のキャプチャを検出しました');
+        setCapturingUI();
+        progressSection.style.display = 'block';
+        progressSection.classList.add('active');
+        startProgressPolling();
+      }
+    }
+  } catch (error) {
+    console.warn('[Popup] プログレス確認に失敗:', error);
+  }
 }
+
+// ポップアップが閉じられるときにポーリングをクリーンアップ
+window.addEventListener('unload', () => {
+  stopProgressPolling();
+});
 
 // DOM読み込み完了後に初期化
 document.addEventListener('DOMContentLoaded', init);
