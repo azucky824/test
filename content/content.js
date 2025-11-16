@@ -12,7 +12,8 @@ let captureState = {
   interval: 2000,
   timeoutId: null,
   tableOfContents: null, // 目次情報
-  bookTitle: null // 書籍タイトル
+  bookTitle: null, // 書籍タイトル
+  readingDirection: 'ltr' // 読み方向（rtl=右開き, ltr=左開き）
 };
 
 /**
@@ -221,6 +222,61 @@ function getBookTitle() {
 }
 
 /**
+ * 書籍の向き（縦書き/横書き、右開き/左開き）を判定
+ * @returns {string} 'rtl'（右開き/縦書き）または 'ltr'（左開き/横書き）
+ */
+function getReadingDirection() {
+  try {
+    // コンテンツエリアを取得
+    const selectors = [
+      '#kindleReader_book_inner',
+      '#kindleReader_book',
+      '.readingContent',
+      '[class*="reader-content"]',
+      '[id*="reader"]',
+      'main',
+      '[role="main"]'
+    ];
+
+    for (const selector of selectors) {
+      const element = document.querySelector(selector);
+      if (element) {
+        // CSSのwriting-modeをチェック
+        const computedStyle = window.getComputedStyle(element);
+        const writingMode = computedStyle.writingMode || computedStyle.webkitWritingMode;
+        const direction = computedStyle.direction;
+
+        console.log(`[Kindle to PDF] 検出されたスタイル - writing-mode: ${writingMode}, direction: ${direction}`);
+
+        // 縦書き（vertical-rl）は右開き
+        if (writingMode && (writingMode.includes('vertical-rl') || writingMode.includes('tb-rl'))) {
+          console.log('[Kindle to PDF] 書籍の向き: 右開き（縦書き）');
+          return 'rtl';
+        }
+
+        // directionがrtlの場合も右開き
+        if (direction === 'rtl') {
+          console.log('[Kindle to PDF] 書籍の向き: 右開き');
+          return 'rtl';
+        }
+
+        // それ以外は左開き（横書き）
+        console.log('[Kindle to PDF] 書籍の向き: 左開き（横書き）');
+        return 'ltr';
+      }
+    }
+
+    // デフォルトは左開き
+    console.warn('[Kindle to PDF] 書籍の向きを判定できませんでした。デフォルト: 左開き');
+    return 'ltr';
+
+  } catch (error) {
+    console.error('[Kindle to PDF] 書籍の向き判定エラー:', error);
+    return 'ltr';
+  }
+}
+
+/**
  * Kindle Cloud Readerの目次を取得
  * @returns {Promise<Array|null>} 目次情報の配列、取得できない場合はnull
  */
@@ -404,7 +460,8 @@ async function performCapture() {
         startPage: captureState.startPage,
         endPage: captureState.endPage,
         tableOfContents: captureState.tableOfContents,
-        bookTitle: captureState.bookTitle
+        bookTitle: captureState.bookTitle,
+        readingDirection: captureState.readingDirection
       });
 
       return;
@@ -455,6 +512,10 @@ async function startCapture(config) {
 
   // 書籍タイトルを取得
   captureState.bookTitle = getBookTitle();
+
+  // 書籍の向き（右開き/左開き）を判定
+  captureState.readingDirection = getReadingDirection();
+  console.log(`[Kindle to PDF] 読み方向: ${captureState.readingDirection === 'rtl' ? '右開き（縦書き）' : '左開き（横書き）'}`);
 
   // 目次を取得（オプション、エラーは無視）
   try {

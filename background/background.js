@@ -111,22 +111,30 @@ function saveImage(imageData, pageNumber) {
  * @param {number} endPage - 終了ページ
  * @param {Array} tableOfContents - 目次情報
  * @param {string} bookTitle - 書籍タイトル
+ * @param {string} readingDirection - 読み方向（rtl/ltr）
  */
-async function generatePDF(startPage, endPage, tableOfContents = null, bookTitle = null) {
+async function generatePDF(startPage, endPage, tableOfContents = null, bookTitle = null, readingDirection = 'ltr') {
   try {
     console.log('[Kindle to PDF] PDF生成開始');
+    console.log(`[Kindle to PDF] 読み方向: ${readingDirection === 'rtl' ? '右開き（縦書き）' : '左開き（横書き）'}`);
 
     if (captureData.images.length === 0) {
       throw new Error('キャプチャされた画像がありません');
     }
 
-    // ページ番号順にソート
-    captureData.images.sort((a, b) => a.pageNumber - b.pageNumber);
+    // ページ番号順にソート（右開きの場合は逆順）
+    if (readingDirection === 'rtl') {
+      captureData.images.sort((a, b) => b.pageNumber - a.pageNumber);
+      console.log('[Kindle to PDF] 右開き書籍のため、ページ順を逆にします');
+    } else {
+      captureData.images.sort((a, b) => a.pageNumber - b.pageNumber);
+    }
 
     // PDF生成オプション
     const pdfOptions = {
       tableOfContents: tableOfContents,
-      title: bookTitle
+      title: bookTitle,
+      readingDirection: readingDirection
     };
 
     // PDF生成ユーティリティを呼び出し
@@ -134,12 +142,13 @@ async function generatePDF(startPage, endPage, tableOfContents = null, bookTitle
 
     // ファイル名を生成
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+    const directionSuffix = readingDirection === 'rtl' ? '_縦書き' : '';
     let filename;
     if (bookTitle) {
       const safeTitle = bookTitle.replace(/[^a-zA-Z0-9-_\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/g, '_').slice(0, 50);
-      filename = `${safeTitle}_p${startPage}-${endPage}_${timestamp}.pdf`;
+      filename = `${safeTitle}${directionSuffix}_p${startPage}-${endPage}_${timestamp}.pdf`;
     } else {
-      filename = `kindle-book-p${startPage}-${endPage}-${timestamp}.pdf`;
+      filename = `kindle-book${directionSuffix}_p${startPage}-${endPage}-${timestamp}.pdf`;
     }
 
     // PDFをダウンロード
@@ -380,12 +389,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           captureData.endPage = message.endPage;
           captureData.tableOfContents = message.tableOfContents || null;
           captureData.bookTitle = message.bookTitle || null;
+          captureData.readingDirection = message.readingDirection || 'ltr';
 
           await generatePDF(
             message.startPage,
             message.endPage,
             message.tableOfContents,
-            message.bookTitle
+            message.bookTitle,
+            message.readingDirection || 'ltr'
           );
           sendResponse({ success: true });
           break;

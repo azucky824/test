@@ -10,8 +10,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### 計画中の機能 (Future Phases)
 - OCR機能（Tesseract.js使用）- テキスト抽出とPDFへの埋め込み
 - 複数書籍の一括変換
-- カスタムページ範囲指定の改善
 - プリセット設定の保存機能
+
+## [1.2.0] - 2025-01-16
+
+### Added
+- ✅ **開始ページの固定**: 常に1ページ目から開始（ユーザー指定不要）
+  - 開始ページ入力フィールドを削除
+  - シンプルなUIに改善
+
+- ✅ **右開き/左開き（縦書き/横書き）の自動判定**
+  - CSSの writing-mode と direction を解析
+  - 縦書き書籍を自動検出
+  - 右開き書籍の場合、PDF内のページ順を逆転
+  - ファイル名に「縦書き」サフィックスを追加
+
+### Changed
+- UIの簡素化（開始ページ入力を削除）
+- content.js: getReadingDirection()関数を追加
+- background.js: PDF生成時にページ順を調整
+- 読み方向の情報をPDFメタデータに含める
+
+### Fixed
+- 縦書き書籍でページ順が逆になる問題を解決
 
 ## [1.1.0] - 2025-01-16
 

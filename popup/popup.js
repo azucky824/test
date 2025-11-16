@@ -4,7 +4,6 @@
  */
 
 // DOM要素の取得
-const startPageInput = document.getElementById('startPage');
 const endPageInput = document.getElementById('endPage');
 const intervalInput = document.getElementById('interval');
 const imageQualityInput = document.getElementById('imageQuality');
@@ -59,9 +58,10 @@ function resetUI() {
   cancelButton.style.display = 'none';
   progressSection.style.display = 'none';
   startButton.disabled = false;
-  startPageInput.disabled = false;
   endPageInput.disabled = false;
   intervalInput.disabled = false;
+  imageQualityInput.disabled = false;
+  enableOCRCheckbox.disabled = false;
 }
 
 /**
@@ -73,9 +73,10 @@ function setCapturingUI() {
   cancelButton.style.display = 'flex';
   progressSection.style.display = 'block';
   progressSection.classList.add('active');
-  startPageInput.disabled = true;
   endPageInput.disabled = true;
   intervalInput.disabled = true;
+  imageQualityInput.disabled = true;
+  enableOCRCheckbox.disabled = true;
 }
 
 /**
@@ -102,17 +103,12 @@ async function isKindleCloudReader() {
  * @returns {Object|null} - 検証済みの設定オブジェクト、またはnull
  */
 function validateInputs() {
-  const startPage = parseInt(startPageInput.value) || null;
+  const startPage = 1; // 常に1ページ目から開始
   const endPage = parseInt(endPageInput.value);
   const interval = parseFloat(intervalInput.value);
 
-  if (!endPage) {
-    showStatus('終了ページを入力してください', 'error');
-    return null;
-  }
-
-  if (startPage && startPage > endPage) {
-    showStatus('開始ページは終了ページより小さい値にしてください', 'error');
+  if (!endPage || endPage < 1) {
+    showStatus('終了ページを入力してください（1以上）', 'error');
     return null;
   }
 
@@ -223,14 +219,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       showStatus(`エラー: ${message.error}`, 'error');
       resetUI();
       break;
-
-    case 'SET_CURRENT_PAGE':
-      // content scriptから現在のページ番号を受け取る
-      if (message.page && !startPageInput.value) {
-        startPageInput.value = message.page;
-        startPageInput.placeholder = `現在: ${message.page}ページ`;
-      }
-      break;
   }
 
   sendResponse({ received: true });
@@ -259,16 +247,6 @@ async function init() {
     );
     startButton.disabled = true;
     return;
-  }
-
-  // content scriptに現在のページ番号を要求
-  try {
-    await chrome.tabs.sendMessage(currentTabId, {
-      action: 'GET_CURRENT_PAGE'
-    });
-  } catch (error) {
-    console.log('現在のページ番号の取得に失敗:', error);
-    // エラーは無視（ページ番号は手動入力可能）
   }
 }
 
