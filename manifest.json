@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Kindle to PDF Converter",
-  "version": "1.0.0",
-  "description": "Kindle Cloud ReaderからPDFを生成するブラウザ拡張機能",
+  "version": "1.1.0",
+  "description": "Kindle Cloud ReaderからPDFを生成するブラウザ拡張機能（目次保持、画像品質調整対応）",
 
   "permissions": [
     "activeTab",

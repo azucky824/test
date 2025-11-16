@@ -29,6 +29,21 @@
           <label for="interval">キャプチャ間隔（秒）</label>
           <input type="number" id="interval" min="1" max="10" value="2" step="0.5">
         </div>
+
+        <div class="form-group">
+          <label for="imageQuality">画像品質（%）</label>
+          <input type="range" id="imageQuality" min="50" max="100" value="90" step="10">
+          <div class="quality-value"><span id="qualityValue">90</span>%</div>
+          <p class="hint">低い値 = 小さいファイルサイズ、高い値 = 高画質</p>
+        </div>
+
+        <div class="form-group checkbox-group">
+          <label class="checkbox-label">
+            <input type="checkbox" id="enableOCR">
+            <span>OCR機能を有効化（実験的）</span>
+          </label>
+          <p class="hint">テキスト抽出機能（処理時間が長くなります）</p>
+        </div>
       </div>
 
       <div class="progress-section" id="progressSection" style="display: none;">

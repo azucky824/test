@@ -7,6 +7,9 @@
 const startPageInput = document.getElementById('startPage');
 const endPageInput = document.getElementById('endPage');
 const intervalInput = document.getElementById('interval');
+const imageQualityInput = document.getElementById('imageQuality');
+const qualityValueSpan = document.getElementById('qualityValue');
+const enableOCRCheckbox = document.getElementById('enableOCR');
 const startButton = document.getElementById('startButton');
 const cancelButton = document.getElementById('cancelButton');
 const progressSection = document.getElementById('progressSection');
@@ -118,10 +121,15 @@ function validateInputs() {
     return null;
   }
 
+  const imageQuality = parseInt(imageQualityInput.value) / 100; // 0.5-1.0に変換
+  const enableOCR = enableOCRCheckbox.checked;
+
   return {
     startPage,
     endPage,
-    interval: interval * 1000 // ミリ秒に変換
+    interval: interval * 1000, // ミリ秒に変換
+    imageQuality,
+    enableOCR
   };
 }
 
@@ -236,6 +244,11 @@ async function init() {
   // イベントリスナーの設定
   startButton.addEventListener('click', handleStartCapture);
   cancelButton.addEventListener('click', handleCancelCapture);
+
+  // 画像品質スライダーのイベントハンドラ
+  imageQualityInput.addEventListener('input', (e) => {
+    qualityValueSpan.textContent = e.target.value;
+  });
 
   // Kindle Cloud Readerのチェック
   const isKindle = await isKindleCloudReader();

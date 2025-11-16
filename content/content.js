@@ -10,7 +10,9 @@ let captureState = {
   endPage: null,
   currentPage: null,
   interval: 2000,
-  timeoutId: null
+  timeoutId: null,
+  tableOfContents: null, // 目次情報
+  bookTitle: null // 書籍タイトル
 };
 
 /**
@@ -184,6 +186,150 @@ function getContentArea() {
 }
 
 /**
+ * 書籍のタイトルを取得
+ * @returns {string|null} タイトル、取得できない場合はnull
+ */
+function getBookTitle() {
+  const selectors = [
+    'meta[property="og:title"]',
+    'title',
+    '[class*="book-title"]',
+    '[class*="title"]',
+    'h1',
+    '[aria-label*="title"]',
+    '[aria-label*="タイトル"]'
+  ];
+
+  for (const selector of selectors) {
+    try {
+      const element = document.querySelector(selector);
+      if (element) {
+        let title = element.getAttribute('content') || element.textContent || '';
+        title = title.trim();
+        if (title && title.length > 0 && title.length < 200) {
+          console.log(`[Kindle to PDF] 書籍タイトルを取得: ${title}`);
+          return title;
+        }
+      }
+    } catch (error) {
+      console.debug(`[Kindle to PDF] セレクタ ${selector} でのタイトル取得に失敗:`, error);
+    }
+  }
+
+  console.warn('[Kindle to PDF] 書籍タイトルを取得できませんでした');
+  return null;
+}
+
+/**
+ * Kindle Cloud Readerの目次を取得
+ * @returns {Promise<Array|null>} 目次情報の配列、取得できない場合はnull
+ */
+async function getTableOfContents() {
+  try {
+    console.log('[Kindle to PDF] 目次の取得を開始');
+
+    // 目次ボタンを探す
+    const tocButtonSelectors = [
+      '[aria-label*="Table of Contents"]',
+      '[aria-label*="目次"]',
+      '[title*="Table of Contents"]',
+      '[title*="目次"]',
+      'button[class*="toc"]',
+      'button[class*="menu"]',
+      '[id*="toc"]',
+      '[class*="navigation"]'
+    ];
+
+    let tocButton = null;
+    for (const selector of tocButtonSelectors) {
+      const button = document.querySelector(selector);
+      if (button && button.offsetParent !== null) {
+        tocButton = button;
+        console.log(`[Kindle to PDF] 目次ボタンを検出: ${selector}`);
+        break;
+      }
+    }
+
+    if (!tocButton) {
+      console.warn('[Kindle to PDF] 目次ボタンが見つかりませんでした');
+      return null;
+    }
+
+    // 目次を開く
+    tocButton.click();
+    console.log('[Kindle to PDF] 目次ボタンをクリック');
+
+    // 目次が表示されるまで待機
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
+    // 目次項目を取得
+    const tocEntries = [];
+    const tocItemSelectors = [
+      '[class*="toc-item"]',
+      '[class*="toc-entry"]',
+      '[role="menuitem"]',
+      'li[class*="chapter"]',
+      'a[class*="toc"]',
+      '[class*="navigation-item"]'
+    ];
+
+    for (const selector of tocItemSelectors) {
+      const items = document.querySelectorAll(selector);
+      if (items.length > 0) {
+        console.log(`[Kindle to PDF] 目次項目を検出: ${items.length}件 (セレクタ: ${selector})`);
+
+        items.forEach((item, index) => {
+          const text = item.textContent?.trim() || '';
+          const href = item.getAttribute('href') || '';
+
+          // ページ番号を推測（locationやhrefから）
+          let pageNumber = null;
+          const locationMatch = href.match(/location[=:](\d+)/i);
+          if (locationMatch) {
+            pageNumber = parseInt(locationMatch[1], 10);
+          }
+
+          if (text && text.length > 0) {
+            tocEntries.push({
+              index: index,
+              title: text,
+              pageNumber: pageNumber,
+              level: 1 // TODO: 階層レベルの検出
+            });
+          }
+        });
+
+        break;
+      }
+    }
+
+    // 目次を閉じる（ESCキーまたはクローズボタン）
+    const escEvent = new KeyboardEvent('keydown', {
+      key: 'Escape',
+      code: 'Escape',
+      keyCode: 27,
+      which: 27,
+      bubbles: true,
+      cancelable: true
+    });
+    document.dispatchEvent(escEvent);
+
+    // または、クローズボタンをクリック
+    const closeButton = document.querySelector('[aria-label*="Close"], [aria-label*="閉じる"], button[class*="close"]');
+    if (closeButton) {
+      closeButton.click();
+    }
+
+    console.log(`[Kindle to PDF] 目次を取得: ${tocEntries.length}件`);
+    return tocEntries.length > 0 ? tocEntries : null;
+
+  } catch (error) {
+    console.error('[Kindle to PDF] 目次取得エラー:', error);
+    return null;
+  }
+}
+
+/**
  * ページ遷移の完了を待機
  * @param {number} expectedPage - 期待するページ番号
  * @param {number} timeout - タイムアウト時間（ミリ秒）
@@ -256,7 +402,9 @@ async function performCapture() {
       chrome.runtime.sendMessage({
         action: 'GENERATE_PDF',
         startPage: captureState.startPage,
-        endPage: captureState.endPage
+        endPage: captureState.endPage,
+        tableOfContents: captureState.tableOfContents,
+        bookTitle: captureState.bookTitle
       });
 
       return;
@@ -304,6 +452,20 @@ async function startCapture(config) {
   captureState.endPage = config.endPage;
   captureState.interval = config.interval;
   captureState.isCapturing = true;
+
+  // 書籍タイトルを取得
+  captureState.bookTitle = getBookTitle();
+
+  // 目次を取得（オプション、エラーは無視）
+  try {
+    captureState.tableOfContents = await getTableOfContents();
+    if (captureState.tableOfContents) {
+      console.log(`[Kindle to PDF] 目次を取得しました: ${captureState.tableOfContents.length}件`);
+    }
+  } catch (error) {
+    console.warn('[Kindle to PDF] 目次の取得に失敗しましたが、処理を続行します:', error);
+    captureState.tableOfContents = null;
+  }
 
   // 開始ページが現在のページと異なる場合は警告
   if (config.startPage && config.startPage !== currentPage) {

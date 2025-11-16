@@ -9,7 +9,9 @@ let captureData = {
   isCapturing: false,
   startPage: null,
   endPage: null,
-  tabId: null
+  tabId: null,
+  tableOfContents: null,
+  bookTitle: null
 };
 
 /**
@@ -107,8 +109,10 @@ function saveImage(imageData, pageNumber) {
  * PDFを生成してダウンロード
  * @param {number} startPage - 開始ページ
  * @param {number} endPage - 終了ページ
+ * @param {Array} tableOfContents - 目次情報
+ * @param {string} bookTitle - 書籍タイトル
  */
-async function generatePDF(startPage, endPage) {
+async function generatePDF(startPage, endPage, tableOfContents = null, bookTitle = null) {
   try {
     console.log('[Kindle to PDF] PDF生成開始');
 
@@ -119,12 +123,24 @@ async function generatePDF(startPage, endPage) {
     // ページ番号順にソート
     captureData.images.sort((a, b) => a.pageNumber - b.pageNumber);
 
+    // PDF生成オプション
+    const pdfOptions = {
+      tableOfContents: tableOfContents,
+      title: bookTitle
+    };
+
     // PDF生成ユーティリティを呼び出し
-    const pdfBlob = await createPDFFromImages(captureData.images);
+    const pdfBlob = await createPDFFromImages(captureData.images, pdfOptions);
 
     // ファイル名を生成
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
-    const filename = `kindle-book-p${startPage}-${endPage}-${timestamp}.pdf`;
+    let filename;
+    if (bookTitle) {
+      const safeTitle = bookTitle.replace(/[^a-zA-Z0-9-_\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/g, '_').slice(0, 50);
+      filename = `${safeTitle}_p${startPage}-${endPage}_${timestamp}.pdf`;
+    } else {
+      filename = `kindle-book-p${startPage}-${endPage}-${timestamp}.pdf`;
+    }
 
     // PDFをダウンロード
     const url = URL.createObjectURL(pdfBlob);
@@ -160,11 +176,92 @@ async function generatePDF(startPage, endPage) {
 }
 
 /**
+ * PDFに目次ページを追加
+ * @param {Object} pdf - jsPDFインスタンス
+ * @param {Array} tableOfContents - 目次データ
+ * @param {string} bookTitle - 書籍タイトル
+ */
+function addTableOfContentsPage(pdf, tableOfContents, bookTitle = null) {
+  const pageWidth = pdf.internal.pageSize.getWidth();
+  const pageHeight = pdf.internal.pageSize.getHeight();
+  const margin = 40;
+  let yPosition = margin;
+
+  // タイトル
+  if (bookTitle) {
+    pdf.setFontSize(20);
+    pdf.setFont(undefined, 'bold');
+    pdf.text(bookTitle, margin, yPosition);
+    yPosition += 30;
+  }
+
+  // 「目次」ヘッダー
+  pdf.setFontSize(16);
+  pdf.setFont(undefined, 'bold');
+  pdf.text('Table of Contents / 目次', margin, yPosition);
+  yPosition += 25;
+
+  // 区切り線
+  pdf.setLineWidth(0.5);
+  pdf.line(margin, yPosition, pageWidth - margin, yPosition);
+  yPosition += 15;
+
+  // 目次項目
+  pdf.setFontSize(12);
+  pdf.setFont(undefined, 'normal');
+
+  const lineHeight = 18;
+  const maxItemsPerPage = Math.floor((pageHeight - yPosition - margin) / lineHeight);
+
+  tableOfContents.forEach((item, index) => {
+    // ページが足りない場合、新しいページを追加
+    if (index > 0 && index % maxItemsPerPage === 0) {
+      pdf.addPage();
+      yPosition = margin;
+
+      pdf.setFontSize(16);
+      pdf.setFont(undefined, 'bold');
+      pdf.text('Table of Contents / 目次（続き）', margin, yPosition);
+      yPosition += 25;
+
+      pdf.setFontSize(12);
+      pdf.setFont(undefined, 'normal');
+    }
+
+    // インデント（階層レベルに応じて）
+    const indent = margin + (item.level || 0) * 15;
+
+    // 項目テキスト
+    const itemText = `${index + 1}. ${item.title}`;
+
+    // テキストが長すぎる場合は切り詰め
+    const maxWidth = pageWidth - indent - margin - 60;
+    const lines = pdf.splitTextToSize(itemText, maxWidth);
+
+    // 最初の行のみ表示（複数行は省略）
+    const displayText = lines[0] + (lines.length > 1 ? '...' : '');
+    pdf.text(displayText, indent, yPosition);
+
+    // ページ番号（右揃え）
+    if (item.pageNumber) {
+      const pageNumText = `p.${item.pageNumber}`;
+      const pageNumWidth = pdf.getTextWidth(pageNumText);
+      pdf.text(pageNumText, pageWidth - margin - pageNumWidth, yPosition);
+    }
+
+    yPosition += lineHeight;
+  });
+
+  console.log(`[Kindle to PDF] 目次ページを追加 (${tableOfContents.length}項目)`);
+}
+
+/**
  * 画像配列からPDFを生成
  * @param {Array} images - 画像データの配列
+ * @param {Object} options - PDFオプション
  * @returns {Promise<Blob>} PDF Blob
  */
-async function createPDFFromImages(images) {
+async function createPDFFromImages(images, options = {}) {
   // jsPDFが利用可能か確認
   if (typeof jspdf === 'undefined' && typeof window !== 'undefined' && !window.jspdf) {
     // jsPDFが読み込まれていない場合、動的に読み込む
@@ -182,7 +279,24 @@ async function createPDFFromImages(images) {
         compress: true
       });
 
+      // メタデータを設定
+      if (options.title) {
+        pdf.setProperties({
+          title: options.title,
+          subject: 'Kindle Book',
+          author: options.author || 'Kindle to PDF Converter',
+          creator: 'Kindle to PDF Converter Extension',
+          keywords: options.keywords || 'kindle, pdf, ebook'
+        });
+      }
+
       let isFirstPage = true;
+
+      // 目次ページを追加（オプション）
+      if (options.tableOfContents && options.tableOfContents.length > 0) {
+        addTableOfContentsPage(pdf, options.tableOfContents, options.title);
+        isFirstPage = false;
+      }
 
       // 各画像をPDFに追加
       for (const imageData of images) {
@@ -264,8 +378,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         case 'GENERATE_PDF': {
           captureData.startPage = message.startPage;
           captureData.endPage = message.endPage;
+          captureData.tableOfContents = message.tableOfContents || null;
+          captureData.bookTitle = message.bookTitle || null;
 
-          await generatePDF(message.startPage, message.endPage);
+          await generatePDF(
+            message.startPage,
+            message.endPage,
+            message.tableOfContents,
+            message.bookTitle
+          );
           sendResponse({ success: true });
           break;
         }

@@ -4,6 +4,86 @@
  */
 
 /**
+ * PDFに目次ページを追加
+ * @param {Object} pdf - jsPDFインスタンス
+ * @param {Array} tableOfContents - 目次データ
+ * @param {string} bookTitle - 書籍タイトル
+ */
+function addTableOfContentsPage(pdf, tableOfContents, bookTitle = null) {
+  const pageWidth = pdf.internal.pageSize.getWidth();
+  const pageHeight = pdf.internal.pageSize.getHeight();
+  const margin = 40;
+  let yPosition = margin;
+
+  // タイトル
+  if (bookTitle) {
+    pdf.setFontSize(20);
+    pdf.setFont(undefined, 'bold');
+    pdf.text(bookTitle, margin, yPosition);
+    yPosition += 30;
+  }
+
+  // 「目次」ヘッダー
+  pdf.setFontSize(16);
+  pdf.setFont(undefined, 'bold');
+  pdf.text('Table of Contents / 目次', margin, yPosition);
+  yPosition += 25;
+
+  // 区切り線
+  pdf.setLineWidth(0.5);
+  pdf.line(margin, yPosition, pageWidth - margin, yPosition);
+  yPosition += 15;
+
+  // 目次項目
+  pdf.setFontSize(12);
+  pdf.setFont(undefined, 'normal');
+
+  const lineHeight = 18;
+  const maxItemsPerPage = Math.floor((pageHeight - yPosition - margin) / lineHeight);
+
+  tableOfContents.forEach((item, index) => {
+    // ページが足りない場合、新しいページを追加
+    if (index > 0 && index % maxItemsPerPage === 0) {
+      pdf.addPage();
+      yPosition = margin;
+
+      pdf.setFontSize(16);
+      pdf.setFont(undefined, 'bold');
+      pdf.text('Table of Contents / 目次（続き）', margin, yPosition);
+      yPosition += 25;
+
+      pdf.setFontSize(12);
+      pdf.setFont(undefined, 'normal');
+    }
+
+    // インデント（階層レベルに応じて）
+    const indent = margin + (item.level || 0) * 15;
+
+    // 項目テキスト
+    const itemText = `${index + 1}. ${item.title}`;
+
+    // テキストが長すぎる場合は切り詰め
+    const maxWidth = pageWidth - indent - margin - 60;
+    const lines = pdf.splitTextToSize(itemText, maxWidth);
+
+    // 最初の行のみ表示（複数行は省略）
+    const displayText = lines[0] + (lines.length > 1 ? '...' : '');
+    pdf.text(displayText, indent, yPosition);
+
+    // ページ番号（右揃え）
+    if (item.pageNumber) {
+      const pageNumText = `p.${item.pageNumber}`;
+      const pageNumWidth = pdf.getTextWidth(pageNumText);
+      pdf.text(pageNumText, pageWidth - margin - pageNumWidth, yPosition);
+    }
+
+    yPosition += lineHeight;
+  });
+
+  console.log(`[PDF Generator] 目次ページを追加 (${tableOfContents.length}項目)`);
+}
+
+/**
  * jsPDFライブラリが読み込まれているか確認
  * @returns {boolean}
  */
@@ -91,6 +171,12 @@ export async function generatePDF(images, options = {}) {
       }
 
       let isFirstPage = true;
+
+      // 目次ページを追加（オプション）
+      if (options.tableOfContents && options.tableOfContents.length > 0) {
+        addTableOfContentsPage(pdf, options.tableOfContents, options.title);
+        isFirstPage = false;
+      }
 
       // 各画像を順番に処理
       for (let i = 0; i < sortedImages.length; i++) {

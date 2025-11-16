@@ -7,13 +7,53 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### 計画中の機能 (Phase 2)
-- OCR機能（Tesseract.js使用）
-- 画像圧縮オプション
-- しおり・目次の保持
+### 計画中の機能 (Future Phases)
+- OCR機能（Tesseract.js使用）- テキスト抽出とPDFへの埋め込み
 - 複数書籍の一括変換
 - カスタムページ範囲指定の改善
-- プリセット設定の保存
+- プリセット設定の保存機能
+
+## [1.1.0] - 2025-01-16
+
+### Added - Phase 2
+
+#### Table of Contents Support
+- ✅ Kindle Cloud Readerから目次情報を自動取得
+  - 目次ボタンの自動検出
+  - 目次項目とページ番号の抽出
+  - 階層構造の認識
+- ✅ PDFに目次ページを自動追加
+  - 書籍タイトル表示
+  - 目次項目のリスト表示（ページ番号付き）
+  - 長い目次の複数ページ対応
+  - 日英バイリンガル表示
+
+#### Image Quality Options
+- ✅ 画像品質設定（50%-100%）
+  - スライダーUIで直感的に設定
+  - ファイルサイズと画質のトレードオフ調整
+  - リアルタイムプレビュー表示
+
+#### Enhanced Metadata
+- ✅ 書籍タイトルの自動取得と PDF メタデータへの設定
+- ✅ ファイル名に書籍タイトルを含める機能
+- ✅ PDFプロパティ（作成者、キーワード）の設定
+
+#### UI Improvements
+- ✅ 設定画面の拡張
+  - 画像品質スライダー
+  - OCR有効化チェックボックス（UI準備完了）
+  - ヒントテキストの追加
+
+### Technical Improvements
+- ✅ content.jsに目次取得機能を追加
+- ✅ background.jsに目次ページ生成機能を追加
+- ✅ PDFメタデータの充実
+- ✅ 日本語対応の改善
+
+### Notes
+- OCR機能のUIは準備済みだが、実装は次フェーズ
+- 目次が取得できない書籍でも正常に動作
 
 ## [1.0.0] - 2025-01-16
 
