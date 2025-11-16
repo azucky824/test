@@ -130,6 +130,62 @@ function validateInputs() {
 }
 
 /**
+ * コンテンツスクリプトが読み込まれているか確認し、必要なら注入する
+ * @returns {Promise<boolean>} 成功した場合true
+ */
+async function ensureContentScriptLoaded() {
+  try {
+    // まず、コンテンツスクリプトにpingを送って応答を確認
+    const response = await chrome.tabs.sendMessage(currentTabId, {
+      action: 'PING'
+    });
+
+    if (response && response.success) {
+      console.log('[Popup] Content script is already loaded');
+      return true;
+    }
+  } catch (error) {
+    // コンテンツスクリプトが読み込まれていない場合、手動で注入
+    console.log('[Popup] Content script not loaded, injecting...');
+
+    try {
+      // browser-polyfillを注入
+      await chrome.scripting.executeScript({
+        target: { tabId: currentTabId },
+        files: ['lib/browser-polyfill.min.js']
+      });
+
+      // content scriptを注入
+      await chrome.scripting.executeScript({
+        target: { tabId: currentTabId },
+        files: ['content/content.js']
+      });
+
+      // 注入後、少し待機してから確認
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      // 再度pingを送って確認
+      const retryResponse = await chrome.tabs.sendMessage(currentTabId, {
+        action: 'PING'
+      });
+
+      if (retryResponse && retryResponse.success) {
+        console.log('[Popup] Content script injected successfully');
+        return true;
+      }
+    } catch (injectError) {
+      console.error('[Popup] Failed to inject content script:', injectError);
+      throw new Error(
+        'コンテンツスクリプトの読み込みに失敗しました。' +
+        'ページを再読み込みしてから、もう一度お試しください。'
+      );
+    }
+  }
+
+  return false;
+}
+
+/**
  * キャプチャ開始ボタンのクリックハンドラ
  */
 async function handleStartCapture() {
@@ -156,6 +212,9 @@ async function handleStartCapture() {
   progressText.textContent = '準備中...';
 
   try {
+    // コンテンツスクリプトが読み込まれているか確認
+    await ensureContentScriptLoaded();
+
     // content scriptにメッセージを送信
     const response = await chrome.tabs.sendMessage(currentTabId, {
       action: 'START_CAPTURE',

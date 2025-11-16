@@ -565,6 +565,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   (async () => {
     try {
       switch (message.action) {
+        case 'PING': {
+          // コンテンツスクリプトが読み込まれているか確認するためのPing
+          sendResponse({ success: true });
+          break;
+        }
+
         case 'GET_CURRENT_PAGE': {
           const page = getCurrentPage();
           chrome.runtime.sendMessage({

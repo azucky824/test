@@ -33,6 +33,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - 縦書き書籍でページ順が逆になる問題を解決
+- **コンテンツスクリプト接続エラーを修正**
+  - "Could not establish connection. Receiving end does not exist" エラーを解決
+  - popup.js: コンテンツスクリプトの読み込み確認機能を追加
+  - 必要に応じてコンテンツスクリプトを自動注入
+  - PINGメカニズムで接続状態を確認
 
 ## [1.1.0] - 2025-01-16
 
