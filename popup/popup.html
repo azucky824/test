@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kindle to PDF Converter</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>📚 Kindle to PDF</h1>
+      <p class="subtitle">Cloud Reader → PDF変換</p>
+    </header>
+
+    <main>
+      <div class="settings-section">
+        <div class="form-group">
+          <label for="startPage">開始ページ</label>
+          <input type="number" id="startPage" min="1" placeholder="現在のページ">
+        </div>
+
+        <div class="form-group">
+          <label for="endPage">終了ページ <span class="required">*</span></label>
+          <input type="number" id="endPage" min="1" required>
+        </div>
+
+        <div class="form-group">
+          <label for="interval">キャプチャ間隔（秒）</label>
+          <input type="number" id="interval" min="1" max="10" value="2" step="0.5">
+        </div>
+      </div>
+
+      <div class="progress-section" id="progressSection" style="display: none;">
+        <div class="progress-info">
+          <span id="progressText">準備中...</span>
+          <span id="progressCount"></span>
+        </div>
+        <div class="progress-bar-container">
+          <div class="progress-bar" id="progressBar"></div>
+        </div>
+      </div>
+
+      <div class="status-section">
+        <div id="statusMessage" class="status-message"></div>
+      </div>
+
+      <div class="button-group">
+        <button id="startButton" class="btn btn-primary">
+          <span class="btn-icon">▶</span>
+          キャプチャ開始
+        </button>
+        <button id="cancelButton" class="btn btn-secondary" style="display: none;">
+          <span class="btn-icon">⏹</span>
+          キャンセル
+        </button>
+      </div>
+    </main>
+
+    <footer>
+      <p class="warning">⚠️ 個人利用のみ。著作権法を遵守してください。</p>
+    </footer>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

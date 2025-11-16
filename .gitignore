@@ -1,0 +1,40 @@
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Build
+dist/
+build/
+*.zip
+
+# Temporary files
+*.tmp
+*.log
+.cache/
+
+# Python
+__pycache__/
+*.pyc
+create_icons.py
+create_simple_icons.py
+
+# Node modules (if using npm in future)
+node_modules/
+package-lock.json
+yarn.lock
+
+# Test files
+test/
+*.test.js
+
+# Personal
+.env
+notes.md
