@@ -18,11 +18,21 @@ pip install pillow opencv-python numpy pyautogui
 
 echo.
 echo EXEファイルをビルド中...
+
+echo.
+echo [1/2] GUIバージョンをビルド中...
 pyinstaller --onefile ^
     --noconsole ^
     --icon=NONE ^
-    --name="KindleScreenshot" ^
-    --add-data "README_EXE.txt;." ^
+    --name="KindleScreenshotGUI" ^
+    kindle_screenshot_gui.py
+
+echo.
+echo [2/2] CLIバージョンをビルド中...
+pyinstaller --onefile ^
+    --console ^
+    --icon=NONE ^
+    --name="KindleScreenshotCLI" ^
     kindle_screenshot.py
 
 echo.

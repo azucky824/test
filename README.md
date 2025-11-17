@@ -8,39 +8,68 @@ Kindle for PC の本を自動的にキャプチャして、PNG画像およびPDF
 ✅ **PDF生成** - キャプチャした画像を1つのPDFファイルにまとめる
 ✅ **目次取得** - 本の目次を画像として保存
 ✅ **コンテンツ領域自動検出** - 余白を自動的に除去
+✅ **本のタイトル自動取得** - Kindleウィンドウから本のタイトルを自動検出 🆕
+✅ **GUI/CLIの両方に対応** - 使いやすいGUIと自動化可能なCLI 🆕
 ✅ **EXE形式** - 実行ファイルとして配布可能
 
 ## クイックスタート
 
-### 方法1: Pythonスクリプトとして実行
+### 方法1: GUI版（推奨）
 
 ```bash
 # 必要なライブラリをインストール
 pip install -r requirements.txt
 
-# 実行
+# GUI版を実行
+python kindle_screenshot_gui.py
+```
+
+### 方法2: CLI版（コマンドライン）
+
+```bash
+# 必要なライブラリをインストール
+pip install -r requirements.txt
+
+# CLI版を実行
 python kindle_screenshot.py
 ```
 
-### 方法2: EXE形式で実行（Windows）
+### 方法3: EXE形式で実行（Windows）
 
 ```bash
 # EXEをビルド
 build_exe.bat
 
-# 実行
-dist\KindleScreenshot.exe
+# GUI版を実行
+dist\KindleScreenshotGUI.exe
+
+# または CLI版を実行
+dist\KindleScreenshotCLI.exe
 ```
 
 ## 使い方
 
+### GUI版
+
 1. **Kindle for PC** で本を開く
-2. **スクリプトまたはEXE** を実行
-3. **タイトルを入力**（空白の場合は現在時刻が使用されます）
-4. 自動的に以下が実行されます：
-   - 📖 目次のキャプチャ（`table_of_contents.png`）
-   - 📄 フルスクリーンで各ページをキャプチャ（`001.png`, `002.png`, ...）
-   - 📕 すべてのページを1つのPDFに変換（`[タイトル].pdf`）
+2. **kindle_screenshot_gui.py** を実行
+3. GUI画面が表示されます：
+   - 📖 **本のタイトル**: 自動検出されます（編集可能）
+   - 📁 **保存先**: フォルダを選択
+   - ⚙️ **オプション**: PDF生成、目次キャプチャ、待機時間を設定
+4. **「▶ キャプチャ開始」** ボタンをクリック
+5. 自動的に以下が実行されます：
+   - 📖 目次のキャプチャ（オプション）
+   - 📄 フルスクリーンで各ページをキャプチャ
+   - 📕 すべてのページを1つのPDFに変換（オプション）
+6. ログでリアルタイムに進捗を確認
+
+### CLI版
+
+1. **Kindle for PC** で本を開く
+2. **kindle_screenshot.py** を実行
+3. ダイアログでタイトルを入力
+4. 自動的にキャプチャが開始されます
 
 ## 出力ファイル
 
@@ -128,7 +157,8 @@ CAPTURE_TOC = True  # 目次をキャプチャするか
 
 ```
 kindle-screenshot-tool/
-├── kindle_screenshot.py      # メインスクリプト
+├── kindle_screenshot_gui.py  # GUIバージョン（推奨）
+├── kindle_screenshot.py      # CLIバージョン
 ├── requirements.txt          # 必要なライブラリ
 ├── build_exe.bat            # EXEビルドスクリプト
 ├── BUILD_INSTRUCTIONS.md    # 詳細なビルド手順
@@ -158,7 +188,14 @@ kindle-screenshot-tool/
 
 ## 変更履歴
 
-### v1.1.0 (最新)
+### v1.2.0 (最新)
+- ✨ GUI版を追加（使いやすいインターフェース）
+- ✨ 本のタイトル自動取得機能
+- ✨ リアルタイム進捗表示
+- ✨ 停止ボタンの追加
+- 🔧 GUI/CLI両対応
+
+### v1.1.0
 - ✨ PDF生成機能を追加
 - ✨ 目次キャプチャ機能を追加
 - 🔧 設定のカスタマイズ性を向上
