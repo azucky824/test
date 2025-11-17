@@ -53,18 +53,36 @@ def find_kindle_window_with_title():
 
 
 def extract_book_title(window_title):
-    """Kindleウィンドウタイトルから本のタイトルを抽出する"""
+    """Kindleウィンドウタイトルから本のタイトルを抽出する
+
+    例: "鈴木淳さんの  for PC3 - Tarzan(ターザン) 2025年8月28日号 - Kindle"
+    → "Tarzan(ターザン) 2025年8月28日号"
+    """
     if not window_title:
         return None
 
-    # 「本のタイトル - Kindle」の形式から本のタイトルを抽出
-    if ' - Kindle' in window_title:
-        return window_title.replace(' - Kindle', '').strip()
-    elif 'Kindle' in window_title:
-        # その他の形式に対応
-        return window_title.replace('Kindle', '').strip(' -')
+    # 「ユーザー名 - 本のタイトル - Kindle」の形式から抽出
+    # まず末尾の「Kindle」関連の文字を削除
+    title = window_title.strip()
+    if title.endswith(' - Kindle'):
+        title = title[:-len(' - Kindle')]
+    elif title.endswith('- Kindle'):
+        title = title[:-len('- Kindle')]
+    elif title.endswith('Kindle'):
+        title = title[:-len('Kindle')].strip()
 
-    return window_title
+    # ユーザー名/デバイス名部分を削除
+    # 「鈴木淳さんの  for PC3 - Tarzan...」→「Tarzan...」
+    # パターン: 最初の部分に "for PC" や "さんの" が含まれていれば除去
+    if ' - ' in title:
+        parts = title.split(' - ', 1)  # 最初の " - " で2つに分割
+        if len(parts) == 2:
+            first_part = parts[0].strip()
+            # ユーザー名/デバイス名を示すキーワードをチェック
+            if any(keyword in first_part for keyword in ['for PC', 'さんの', 'の  ', 'iPad', 'iPhone', 'Android']):
+                title = parts[1].strip()
+
+    return title.strip()
 
 
 def activate_kindle_window(hwnd):
@@ -357,18 +375,40 @@ class KindleScreenshotGUI:
         self.capture_toc_var = tk.BooleanVar(value=True)
         ttk.Checkbutton(options_frame, text="目次キャプチャ", variable=self.capture_toc_var).grid(row=0, column=1, padx=5, sticky=tk.W)
 
-        self.trim_margins_var = tk.BooleanVar(value=True)
-        ttk.Checkbutton(options_frame, text="余白トリミング", variable=self.trim_margins_var).grid(row=0, column=2, padx=5, sticky=tk.W)
-
         # 待機時間
-        ttk.Label(options_frame, text="待機時間(秒):").grid(row=1, column=0, padx=5, pady=5, sticky=tk.W)
+        ttk.Label(options_frame, text="待機時間(秒):").grid(row=0, column=2, padx=5, pady=5, sticky=tk.W)
         self.wait_sec_var = tk.DoubleVar(value=0.15)
         wait_spin = ttk.Spinbox(options_frame, from_=0.1, to=2.0, increment=0.05,
                                 textvariable=self.wait_sec_var, width=8)
-        wait_spin.grid(row=1, column=1, padx=5, pady=5, sticky=tk.W)
+        wait_spin.grid(row=0, column=3, padx=5, pady=5, sticky=tk.W)
 
-        self.trim_each_page_var = tk.BooleanVar(value=True)
-        ttk.Checkbutton(options_frame, text="ページごとに余白検出", variable=self.trim_each_page_var).grid(row=1, column=2, padx=5, pady=5, sticky=tk.W)
+        # トリミング座標設定
+        trim_frame = ttk.LabelFrame(settings_frame, text="トリミング座標 (空白の場合は自動検出)", padding="5")
+        trim_frame.grid(row=3, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=5)
+
+        # 上
+        ttk.Label(trim_frame, text="上 (Top):").grid(row=0, column=0, padx=5, pady=2, sticky=tk.W)
+        self.trim_top_var = tk.StringVar(value="")
+        ttk.Entry(trim_frame, textvariable=self.trim_top_var, width=10).grid(row=0, column=1, padx=5, pady=2, sticky=tk.W)
+        ttk.Label(trim_frame, text="px").grid(row=0, column=2, padx=2, pady=2, sticky=tk.W)
+
+        # 下
+        ttk.Label(trim_frame, text="下 (Bottom):").grid(row=0, column=3, padx=5, pady=2, sticky=tk.W)
+        self.trim_bottom_var = tk.StringVar(value="")
+        ttk.Entry(trim_frame, textvariable=self.trim_bottom_var, width=10).grid(row=0, column=4, padx=5, pady=2, sticky=tk.W)
+        ttk.Label(trim_frame, text="px").grid(row=0, column=5, padx=2, pady=2, sticky=tk.W)
+
+        # 左
+        ttk.Label(trim_frame, text="左 (Left):").grid(row=1, column=0, padx=5, pady=2, sticky=tk.W)
+        self.trim_left_var = tk.StringVar(value="")
+        ttk.Entry(trim_frame, textvariable=self.trim_left_var, width=10).grid(row=1, column=1, padx=5, pady=2, sticky=tk.W)
+        ttk.Label(trim_frame, text="px").grid(row=1, column=2, padx=2, pady=2, sticky=tk.W)
+
+        # 右
+        ttk.Label(trim_frame, text="右 (Right):").grid(row=1, column=3, padx=5, pady=2, sticky=tk.W)
+        self.trim_right_var = tk.StringVar(value="")
+        ttk.Entry(trim_frame, textvariable=self.trim_right_var, width=10).grid(row=1, column=4, padx=5, pady=2, sticky=tk.W)
+        ttk.Label(trim_frame, text="px").grid(row=1, column=5, padx=2, pady=2, sticky=tk.W)
 
         # ボタンフレーム
         button_frame = ttk.Frame(main_frame)
@@ -477,8 +517,24 @@ class KindleScreenshotGUI:
             create_pdf = self.create_pdf_var.get()
             capture_toc = self.capture_toc_var.get()
             wait_sec = self.wait_sec_var.get()
-            trim_margins = self.trim_margins_var.get()
-            trim_each_page = self.trim_each_page_var.get()
+
+            # トリミング座標を取得（空白の場合はNone）
+            try:
+                trim_top = int(self.trim_top_var.get()) if self.trim_top_var.get().strip() else None
+            except ValueError:
+                trim_top = None
+            try:
+                trim_bottom = int(self.trim_bottom_var.get()) if self.trim_bottom_var.get().strip() else None
+            except ValueError:
+                trim_bottom = None
+            try:
+                trim_left = int(self.trim_left_var.get()) if self.trim_left_var.get().strip() else None
+            except ValueError:
+                trim_left = None
+            try:
+                trim_right = int(self.trim_right_var.get()) if self.trim_right_var.get().strip() else None
+            except ValueError:
+                trim_right = None
 
             self.log(f"\n{'='*60}")
             self.log(f"キャプチャ開始: {title}")
@@ -509,16 +565,21 @@ class KindleScreenshotGUI:
             pag.moveTo(sc_w - 200, sc_h - 1)
             time.sleep(5)
 
-            # コンテンツ領域を検出
-            self.log("コンテンツ領域を検出中...")
-            img = ImageGrab.grab()
-            img = np.array(img)
-            img_bgr = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
+            # トリミング座標を設定
+            # ユーザーが指定した座標を使用、未指定の場合は自動検出
+            if all(coord is not None for coord in [trim_top, trim_bottom, trim_left, trim_right]):
+                # すべての座標が指定されている場合
+                top, bottom, left, right = trim_top, trim_bottom, trim_left, trim_right
+                self.log("固定座標でトリミング:")
+                self.log(f"  上: {top}px, 下: {bottom}px, 左: {left}px, 右: {right}px")
+                self.log(f"  サイズ: {right-left}x{bottom-top}px")
+            else:
+                # 自動検出
+                self.log("コンテンツ領域を自動検出中...")
+                img = ImageGrab.grab()
+                img = np.array(img)
+                img_bgr = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
 
-            # 余白トリミングの設定
-            top, bottom, left, right = None, None, None, None
-
-            if trim_margins:
                 try:
                     # 4方向の余白を検出
                     top, bottom, left, right = detect_content_area_full(img_bgr, threshold=250, margin=10)
@@ -531,25 +592,13 @@ class KindleScreenshotGUI:
                     left, right = detect_content_area(img_bgr)
                     top, bottom = 0, sc_h
                     self.log(f"✓ 左右の端のみ検出 (左: {left}px, 右: {right}px)")
-            else:
-                # 余白トリミングなし（旧方式）
-                left, right = detect_content_area(img_bgr)
-                top, bottom = 0, sc_h
-                self.log(f"✓ 左右の端のみ検出 (左: {left}px, 右: {right}px)")
 
             # ページキャプチャ開始
             original_dir = os.getcwd()
             os.chdir(save_dir)
 
-            # 初期画像の準備
-            if trim_margins and trim_each_page:
-                # ページごとに余白検出する場合、サイズ不定なのでNoneにする
-                old_img = None
-                self.log("\n💡 ページごとに余白を検出します")
-            else:
-                # 固定サイズでキャプチャ
-                old_img = np.zeros((bottom - top, right - left, 3), np.uint8)
-
+            # 初期画像の準備（固定サイズでキャプチャ）
+            old_img = np.zeros((bottom - top, right - left, 3), np.uint8)
             page = 1
 
             self.log(f"\n{'='*60}")
@@ -559,56 +608,18 @@ class KindleScreenshotGUI:
             while not stop_capture:
                 filename = str(page).zfill(3) + '.png'
 
-                if trim_margins and trim_each_page:
-                    # ページごとに余白検出
-                    time.sleep(wait_sec)
+                # 固定座標でキャプチャ
+                new_img = wait_for_page_change(old_img, left, right, top, bottom, timeout=5.0, wait_sec=wait_sec)
 
-                    # 前のページと比較するための一時画像
-                    temp_img = ImageGrab.grab()
-                    temp_img = np.array(temp_img)
-                    temp_img_bgr = cv2.cvtColor(temp_img, cv2.COLOR_RGB2BGR)
+                if new_img is None:
+                    if stop_capture:
+                        self.log("\n⏹ ユーザーによって停止されました")
+                    else:
+                        self.log("\n✓ 最終ページに到達しました")
+                    pag.press('f11')
+                    break
 
-                    # 最初のページまたはページが変わるまで待機
-                    if old_img is not None and np.array_equal(old_img, temp_img_bgr):
-                        # ページが変わるまで待機
-                        start_time = time.perf_counter()
-                        while time.perf_counter() - start_time < 5.0:
-                            if stop_capture:
-                                break
-                            time.sleep(wait_sec)
-                            temp_img = ImageGrab.grab()
-                            temp_img = np.array(temp_img)
-                            temp_img_bgr = cv2.cvtColor(temp_img, cv2.COLOR_RGB2BGR)
-                            if not np.array_equal(old_img, temp_img_bgr):
-                                break
-
-                        if time.perf_counter() - start_time >= 5.0:
-                            self.log("\n✓ 最終ページに到達しました")
-                            pag.press('f11')
-                            break
-
-                    # ページごとに余白を検出してトリミング
-                    try:
-                        page_top, page_bottom, page_left, page_right = detect_content_area_full(temp_img_bgr, threshold=250, margin=10)
-                        new_img = temp_img_bgr[page_top:page_bottom, page_left:page_right]
-                    except Exception as e:
-                        self.log(f"⚠ Page {page}: 余白検出失敗、画像全体を保存: {e}")
-                        new_img = temp_img_bgr
-
-                    old_img = temp_img_bgr  # 次の比較用
-                else:
-                    # 固定サイズでキャプチャ
-                    new_img = wait_for_page_change(old_img, left, right, top, bottom, timeout=5.0, wait_sec=wait_sec)
-
-                    if new_img is None:
-                        if stop_capture:
-                            self.log("\n⏹ ユーザーによって停止されました")
-                        else:
-                            self.log("\n✓ 最終ページに到達しました")
-                        pag.press('f11')
-                        break
-
-                    old_img = new_img
+                old_img = new_img
 
                 # 画像を保存
                 cv2.imwrite(filename, new_img)

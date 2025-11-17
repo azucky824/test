@@ -36,9 +36,12 @@ KEY_PRESS_DURATION = 0.1         # キー押下の持続時間(秒)
 CREATE_PDF = True                # PDF生成を行うかどうか
 CAPTURE_TOC = True               # 目次をキャプチャするかどうか
 
-# 余白トリミング設定
-TRIM_MARGINS = True              # 余白を自動トリミングするかどうか
-TRIM_EACH_PAGE = True            # ページごとに余白検出を行うかどうか
+# トリミング座標設定（Noneの場合は自動検出）
+# 例: TRIM_TOP = 100, TRIM_BOTTOM = 1920, TRIM_LEFT = 200, TRIM_RIGHT = 1720
+TRIM_TOP = None                  # トリミング上端（px）
+TRIM_BOTTOM = None               # トリミング下端（px）
+TRIM_LEFT = None                 # トリミング左端（px）
+TRIM_RIGHT = None                # トリミング右端（px）
 
 # ========== Windows API 設定 ==========
 EnumWindows = windll.user32.EnumWindows
@@ -342,18 +345,23 @@ def main():
     # フルスクリーン化の待機
     time.sleep(KINDLE_FULLSCREEN_WAIT)
 
-    # 初期画面をキャプチャしてコンテンツ領域を検出
-    print("コンテンツ領域を検出中...")
-    start = time.perf_counter()
-    img = ImageGrab.grab()
-    img = np.array(img)
-    img_bgr = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
-    print(f"初期キャプチャ完了: {time.perf_counter() - start:.3f}秒")
+    # トリミング座標を設定
+    # ユーザーが指定した座標を使用、未指定の場合は自動検出
+    if all(coord is not None for coord in [TRIM_TOP, TRIM_BOTTOM, TRIM_LEFT, TRIM_RIGHT]):
+        # すべての座標が指定されている場合
+        top, bottom, left, right = TRIM_TOP, TRIM_BOTTOM, TRIM_LEFT, TRIM_RIGHT
+        print("固定座標でトリミング:")
+        print(f"  上: {top}px, 下: {bottom}px, 左: {left}px, 右: {right}px")
+        print(f"  サイズ: {right-left}x{bottom-top}px")
+    else:
+        # 自動検出
+        print("コンテンツ領域を自動検出中...")
+        start = time.perf_counter()
+        img = ImageGrab.grab()
+        img = np.array(img)
+        img_bgr = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
+        print(f"初期キャプチャ完了: {time.perf_counter() - start:.3f}秒")
 
-    # 余白トリミングの設定
-    top, bottom, left, right = None, None, None, None
-
-    if TRIM_MARGINS:
         try:
             # 4方向の余白を検出
             top, bottom, left, right = detect_content_area_full(img_bgr, threshold=250, margin=10)
@@ -366,28 +374,15 @@ def main():
             left, right = detect_content_area(img_bgr)
             top, bottom = 0, sc_h
             print(f"✓ 左右の端のみ検出 (左: {left}px, 右: {right}px)")
-    else:
-        # 余白トリミングなし（旧方式）
-        left, right = detect_content_area(img_bgr)
-        top, bottom = 0, sc_h
-        print(f"✓ 左右の端のみ検出 (左: {left}px, 右: {right}px)")
 
     # 作業ディレクトリを変更
     os.chdir(save_dir)
 
-    # 初期画像の準備
-    if TRIM_MARGINS and TRIM_EACH_PAGE:
-        # ページごとに余白検出する場合、サイズ不定なのでNoneにする
-        old_img = None
-        print("\n💡 ページごとに余白を検出します")
-    else:
-        # 固定サイズでキャプチャ
-        old_img = np.zeros((bottom - top, right - left, 3), np.uint8)
-
+    # 初期画像の準備（固定サイズでキャプチャ）
+    old_img = np.zeros((bottom - top, right - left, 3), np.uint8)
     page = 1
 
-    if not (TRIM_MARGINS and TRIM_EACH_PAGE):
-        print(f"画像サイズ: {old_img.shape}")
+    print(f"画像サイズ: {old_img.shape}")
     print("キャプチャ開始...")
 
     try:
@@ -395,52 +390,16 @@ def main():
             filename = str(page).zfill(3) + '.png'
             start = time.perf_counter()
 
-            if TRIM_MARGINS and TRIM_EACH_PAGE:
-                # ページごとに余白検出
-                time.sleep(WAIT_SEC)
+            # 固定座標でキャプチャ
+            new_img = wait_for_page_change(old_img, left, right, top, bottom)
 
-                # 前のページと比較するための一時画像
-                temp_img = ImageGrab.grab()
-                temp_img = np.array(temp_img)
-                temp_img_bgr = cv2.cvtColor(temp_img, cv2.COLOR_RGB2BGR)
+            if new_img is None:
+                # タイムアウト（最終ページと判断）
+                print("ページ変更を検出できませんでした。終了します。")
+                pag.press(KINDLE_FULLSCREEN_KEY)
+                break
 
-                # 最初のページまたはページが変わるまで待機
-                if old_img is not None and np.array_equal(old_img, temp_img_bgr):
-                    # ページが変わるまで待機
-                    start_time = time.perf_counter()
-                    while time.perf_counter() - start_time < PAGE_TIMEOUT:
-                        time.sleep(WAIT_SEC)
-                        temp_img = ImageGrab.grab()
-                        temp_img = np.array(temp_img)
-                        temp_img_bgr = cv2.cvtColor(temp_img, cv2.COLOR_RGB2BGR)
-                        if not np.array_equal(old_img, temp_img_bgr):
-                            break
-
-                    if time.perf_counter() - start_time >= PAGE_TIMEOUT:
-                        print("ページ変更を検出できませんでした。終了します。")
-                        pag.press(KINDLE_FULLSCREEN_KEY)
-                        break
-
-                # ページごとに余白を検出してトリミング
-                try:
-                    page_top, page_bottom, page_left, page_right = detect_content_area_full(temp_img_bgr, threshold=250, margin=10)
-                    new_img = temp_img_bgr[page_top:page_bottom, page_left:page_right]
-                except Exception as e:
-                    print(f"⚠ Page {page}: 余白検出失敗、画像全体を保存: {e}")
-                    new_img = temp_img_bgr
-
-                old_img = temp_img_bgr  # 次の比較用
-            else:
-                # 固定サイズでキャプチャ
-                new_img = wait_for_page_change(old_img, left, right, top, bottom)
-
-                if new_img is None:
-                    # タイムアウト（最終ページと判断）
-                    print("ページ変更を検出できませんでした。終了します。")
-                    pag.press(KINDLE_FULLSCREEN_KEY)
-                    break
-
-                old_img = new_img
+            old_img = new_img
 
             # 画像を保存
             try:
