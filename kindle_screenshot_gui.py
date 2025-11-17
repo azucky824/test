@@ -17,6 +17,7 @@ import numpy as np
 from ctypes import *
 from ctypes.wintypes import *
 import glob
+import json
 
 # ========== Windows API 設定 ==========
 EnumWindows = windll.user32.EnumWindows
@@ -242,6 +243,59 @@ def detect_content_area_full(img, threshold=250, margin=10):
 
     except Exception as e:
         raise ValueError(f"コンテンツ領域の検出に失敗: {e}")
+
+
+def get_coords_file_path():
+    """座標保存ファイルのパスを取得する"""
+    # アプリケーションのデータディレクトリ
+    app_data_dir = osp.join(osp.expanduser('~'), '.kindle_screenshot')
+    os.makedirs(app_data_dir, exist_ok=True)
+    return osp.join(app_data_dir, 'coords.json')
+
+
+def save_coordinates(top, bottom, left, right):
+    """座標をJSONファイルに保存する"""
+    try:
+        coords_file = get_coords_file_path()
+        coords_data = {
+            'top': top,
+            'bottom': bottom,
+            'left': left,
+            'right': right
+        }
+        with open(coords_file, 'w', encoding='utf-8') as f:
+            json.dump(coords_data, f, indent=2)
+        return True
+    except Exception as e:
+        print(f"座標の保存に失敗: {e}")
+        return False
+
+
+def load_coordinates():
+    """保存された座標をJSONファイルから読み込む
+
+    Returns:
+        (top, bottom, left, right): 座標のタプル、失敗時はNone
+    """
+    try:
+        coords_file = get_coords_file_path()
+        if not osp.exists(coords_file):
+            return None
+
+        with open(coords_file, 'r', encoding='utf-8') as f:
+            coords_data = json.load(f)
+
+        top = coords_data.get('top')
+        bottom = coords_data.get('bottom')
+        left = coords_data.get('left')
+        right = coords_data.get('right')
+
+        if all(v is not None for v in [top, bottom, left, right]):
+            return (top, bottom, left, right)
+        return None
+    except Exception as e:
+        print(f"座標の読み込みに失敗: {e}")
+        return None
 
 
 def create_save_directory(base_folder, title):
@@ -500,6 +554,13 @@ class KindleScreenshotGUI:
         self.delete_images_var = tk.BooleanVar(value=False)
         ttk.Checkbutton(options_frame, text="画像削除", variable=self.delete_images_var).grid(row=0, column=2, padx=5, sticky=tk.W)
 
+        # ページ送り方向
+        ttk.Label(options_frame, text="ページ送り:").grid(row=0, column=3, padx=5, sticky=tk.W)
+        self.page_direction_var = tk.StringVar(value="left")
+        direction_combo = ttk.Combobox(options_frame, textvariable=self.page_direction_var,
+                                      values=["left", "right"], width=8, state="readonly")
+        direction_combo.grid(row=0, column=4, padx=5, sticky=tk.W)
+
         # 待機時間
         ttk.Label(options_frame, text="待機時間(秒):").grid(row=1, column=0, padx=5, pady=5, sticky=tk.W)
         self.wait_sec_var = tk.DoubleVar(value=0.15)
@@ -507,13 +568,16 @@ class KindleScreenshotGUI:
                                 textvariable=self.wait_sec_var, width=8)
         wait_spin.grid(row=1, column=1, padx=5, pady=5, sticky=tk.W)
 
-        # 範囲選択の説明
+        # 範囲選択の説明と前回座標使用オプション
         info_frame = ttk.Frame(settings_frame)
         info_frame.grid(row=3, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=5)
 
         info_label = ttk.Label(info_frame, text="💡 フルスクリーン後、マウスドラッグで範囲を選択できます",
                               foreground="blue", font=('Arial', 9))
         info_label.grid(row=0, column=0, padx=5, pady=5, sticky=tk.W)
+
+        self.use_saved_coords_var = tk.BooleanVar(value=False)
+        ttk.Checkbutton(info_frame, text="前回の座標を使用", variable=self.use_saved_coords_var).grid(row=0, column=1, padx=15, sticky=tk.W)
 
         # ボタンフレーム
         button_frame = ttk.Frame(main_frame)
@@ -653,22 +717,41 @@ class KindleScreenshotGUI:
             pag.moveTo(sc_w - 200, sc_h - 1)
             time.sleep(2)
 
-            # ユーザーに範囲選択させる
-            self.log("\n範囲選択モードを開始します...")
-            self.log("マウスドラッグで範囲を選択してください（ESCでキャンセル）")
+            # 座標の取得（保存された座標を使用するか、新たに選択するか）
+            use_saved = self.use_saved_coords_var.get()
+            selected_coords = None
 
-            # 範囲選択を実行
-            selected_coords = select_area_interactively()
+            if use_saved:
+                self.log("\n前回の座標を読み込み中...")
+                selected_coords = load_coordinates()
+                if selected_coords:
+                    top, bottom, left, right = selected_coords
+                    self.log(f"✓ 保存された座標を使用:")
+                    self.log(f"  上: {top}px, 下: {bottom}px, 左: {left}px, 右: {right}px")
+                    self.log(f"  サイズ: {right-left}x{bottom-top}px")
+                else:
+                    self.log("⚠ 保存された座標が見つかりません。範囲選択を行います。")
 
-            if stop_capture or selected_coords is None:
-                self.log("\n⏹ 範囲選択がキャンセルされました")
-                pag.press('f11')
-                return
+            if selected_coords is None:
+                # 範囲選択を実行
+                self.log("\n範囲選択モードを開始します...")
+                self.log("マウスドラッグで範囲を選択してください（ESCでキャンセル）")
 
-            top, bottom, left, right = selected_coords
-            self.log(f"✓ 範囲選択完了:")
-            self.log(f"  上: {top}px, 下: {bottom}px, 左: {left}px, 右: {right}px")
-            self.log(f"  サイズ: {right-left}x{bottom-top}px")
+                selected_coords = select_area_interactively()
+
+                if stop_capture or selected_coords is None:
+                    self.log("\n⏹ 範囲選択がキャンセルされました")
+                    pag.press('f11')
+                    return
+
+                top, bottom, left, right = selected_coords
+                self.log(f"✓ 範囲選択完了:")
+                self.log(f"  上: {top}px, 下: {bottom}px, 左: {left}px, 右: {right}px")
+                self.log(f"  サイズ: {right-left}x{bottom-top}px")
+
+                # 座標を保存
+                if save_coordinates(top, bottom, left, right):
+                    self.log("✓ 座標を保存しました（次回使用可能）")
 
             # ページキャプチャ開始
             original_dir = os.getcwd()
@@ -678,8 +761,12 @@ class KindleScreenshotGUI:
             old_img = np.zeros((bottom - top, right - left, 3), np.uint8)
             page = 1
 
+            # ページ送り方向を取得
+            page_direction = self.page_direction_var.get()
+
             self.log(f"\n{'='*60}")
             self.log(f"ページキャプチャ開始")
+            self.log(f"  ページ送り方向: {page_direction}")
             self.log(f"{'='*60}\n")
 
             while not stop_capture:
@@ -703,7 +790,7 @@ class KindleScreenshotGUI:
                 self.log(f"Page {page:3d}: {filename} ({new_img.shape[1]}x{new_img.shape[0]}px)")
 
                 page += 1
-                pag.press('left')
+                pag.press(page_direction)
 
             os.chdir(original_dir)
 

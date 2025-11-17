@@ -15,10 +15,11 @@ import numpy as np
 from ctypes import *
 from ctypes.wintypes import *
 import glob
+import json
 
 # ========== 設定 ==========
 KINDLE_WINDOW_TITLE = 'Kindle'  # Kindle for PCに含まれるウインドウタイトル
-PAGE_CHANGE_KEY = 'left'         # 次ページに移動するときのキー
+PAGE_DIRECTION = 'left'          # ページ送り方向（'left' または 'right'）
 
 KINDLE_FULLSCREEN_KEY = 'f11'   # フルスクリーンにするときのキー
 KINDLE_FULLSCREEN_WAIT = 5      # フルスクリーンにした後の待ち時間(秒)
@@ -37,7 +38,9 @@ CREATE_PDF = True                # PDF生成を行うかどうか
 CAPTURE_TOC = True               # 目次をキャプチャするかどうか
 DELETE_IMAGES = False            # PDF生成後にPNG画像を削除するか
 
-# トリミング座標設定（Noneの場合は自動検出）
+# 座標設定
+USE_SAVED_COORDS = False         # 前回保存した座標を使用するか
+# トリミング座標設定（Noneの場合は自動検出、USE_SAVED_COORDS=Trueの場合は保存された座標を優先）
 # 例: TRIM_TOP = 100, TRIM_BOTTOM = 1920, TRIM_LEFT = 200, TRIM_RIGHT = 1720
 TRIM_TOP = None                  # トリミング上端（px）
 TRIM_BOTTOM = None               # トリミング下端（px）
@@ -142,6 +145,59 @@ def detect_content_area_full(img, threshold=250, margin=10):
 
     except Exception as e:
         raise ValueError(f"コンテンツ領域の検出に失敗: {e}")
+
+
+def get_coords_file_path():
+    """座標保存ファイルのパスを取得する"""
+    # アプリケーションのデータディレクトリ
+    app_data_dir = osp.join(osp.expanduser('~'), '.kindle_screenshot')
+    os.makedirs(app_data_dir, exist_ok=True)
+    return osp.join(app_data_dir, 'coords.json')
+
+
+def save_coordinates(top, bottom, left, right):
+    """座標をJSONファイルに保存する"""
+    try:
+        coords_file = get_coords_file_path()
+        coords_data = {
+            'top': top,
+            'bottom': bottom,
+            'left': left,
+            'right': right
+        }
+        with open(coords_file, 'w', encoding='utf-8') as f:
+            json.dump(coords_data, f, indent=2)
+        return True
+    except Exception as e:
+        print(f"座標の保存に失敗: {e}")
+        return False
+
+
+def load_coordinates():
+    """保存された座標をJSONファイルから読み込む
+
+    Returns:
+        (top, bottom, left, right): 座標のタプル、失敗時はNone
+    """
+    try:
+        coords_file = get_coords_file_path()
+        if not osp.exists(coords_file):
+            return None
+
+        with open(coords_file, 'r', encoding='utf-8') as f:
+            coords_data = json.load(f)
+
+        top = coords_data.get('top')
+        bottom = coords_data.get('bottom')
+        left = coords_data.get('left')
+        right = coords_data.get('right')
+
+        if all(v is not None for v in [top, bottom, left, right]):
+            return (top, bottom, left, right)
+        return None
+    except Exception as e:
+        print(f"座標の読み込みに失敗: {e}")
+        return None
 
 
 def get_title():
@@ -378,16 +434,32 @@ def main():
     time.sleep(KINDLE_FULLSCREEN_WAIT)
 
     # トリミング座標を設定
-    # ユーザーが指定した座標を使用、未指定の場合は自動検出
-    if all(coord is not None for coord in [TRIM_TOP, TRIM_BOTTOM, TRIM_LEFT, TRIM_RIGHT]):
-        # すべての座標が指定されている場合
+    coords_set = False
+
+    # 1. 保存された座標を使用する設定の場合
+    if USE_SAVED_COORDS:
+        print("\n前回保存した座標を読み込み中...")
+        saved_coords = load_coordinates()
+        if saved_coords:
+            top, bottom, left, right = saved_coords
+            print(f"✓ 保存された座標を使用:")
+            print(f"  上: {top}px, 下: {bottom}px, 左: {left}px, 右: {right}px")
+            print(f"  サイズ: {right-left}x{bottom-top}px")
+            coords_set = True
+        else:
+            print("⚠ 保存された座標が見つかりません。自動検出を行います。")
+
+    # 2. 固定座標が設定されている場合
+    if not coords_set and all(coord is not None for coord in [TRIM_TOP, TRIM_BOTTOM, TRIM_LEFT, TRIM_RIGHT]):
         top, bottom, left, right = TRIM_TOP, TRIM_BOTTOM, TRIM_LEFT, TRIM_RIGHT
-        print("固定座標でトリミング:")
+        print("\n固定座標でトリミング:")
         print(f"  上: {top}px, 下: {bottom}px, 左: {left}px, 右: {right}px")
         print(f"  サイズ: {right-left}x{bottom-top}px")
-    else:
-        # 自動検出
-        print("コンテンツ領域を自動検出中...")
+        coords_set = True
+
+    # 3. 自動検出
+    if not coords_set:
+        print("\nコンテンツ領域を自動検出中...")
         start = time.perf_counter()
         img = ImageGrab.grab()
         img = np.array(img)
@@ -400,6 +472,10 @@ def main():
             print(f"✓ 余白検出完了")
             print(f"  上: {top}px, 下: {bottom}px, 左: {left}px, 右: {right}px")
             print(f"  サイズ: {right-left}x{bottom-top}px")
+
+            # 自動検出した座標を保存
+            if save_coordinates(top, bottom, left, right):
+                print("✓ 座標を保存しました（次回USE_SAVED_COORDS=Trueで使用可能）")
         except ValueError as e:
             print(f"⚠ 余白検出に失敗、代替方法を使用: {e}")
             # フォールバック: 左右のみ検出
@@ -414,8 +490,9 @@ def main():
     old_img = np.zeros((bottom - top, right - left, 3), np.uint8)
     page = 1
 
-    print(f"画像サイズ: {old_img.shape}")
-    print("キャプチャ開始...")
+    print(f"\n画像サイズ: {old_img.shape}")
+    print(f"ページ送り方向: {PAGE_DIRECTION}")
+    print("キャプチャ開始...\n")
 
     try:
         while True:
@@ -443,8 +520,8 @@ def main():
 
             page += 1
 
-            # 次のページへ（修正: keyDownのリークを防ぐ）
-            pag.press(PAGE_CHANGE_KEY)
+            # 次のページへ（ページ送り方向を使用）
+            pag.press(PAGE_DIRECTION)
 
     except KeyboardInterrupt:
         print("\n\nユーザーによって中断されました")
