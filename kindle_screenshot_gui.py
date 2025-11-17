@@ -240,18 +240,25 @@ def convert_images_to_pdf(save_dir, title, log_callback):
         log_callback("\nPDFを生成中...")
         log_callback(f"検索ディレクトリ: {save_dir}")
 
-        search_pattern = osp.join(save_dir, '*.png')
-        log_callback(f"検索パターン: {search_pattern}")
+        # PNG画像を取得（os.listdirを使用してglobの特殊文字問題を回避）
+        all_files = os.listdir(save_dir)
+        png_files = [f for f in all_files if f.endswith('.png')]
 
-        png_files = sorted(glob.glob(search_pattern))
+        # 番号順にソート（001.png, 002.png, ...）
+        png_files = sorted(png_files)
+
         log_callback(f"見つかったPNGファイル: {len(png_files)}個")
 
         if png_files:
-            log_callback(f"最初のファイル: {osp.basename(png_files[0])}")
-            log_callback(f"最後のファイル: {osp.basename(png_files[-1])}")
+            log_callback(f"最初のファイル: {png_files[0]}")
+            log_callback(f"最後のファイル: {png_files[-1]}")
 
-        png_files = [f for f in png_files if not f.endswith('table_of_contents.png')]
+        # table_of_contents.pngを除外
+        png_files = [f for f in png_files if f != 'table_of_contents.png']
         log_callback(f"目次を除外後: {len(png_files)}個")
+
+        # 絶対パスに変換
+        png_files = [osp.join(save_dir, f) for f in png_files]
 
         if not png_files:
             log_callback("⚠ PNG画像が見つかりませんでした")
