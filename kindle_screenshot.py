@@ -29,7 +29,7 @@ R_MARGIN = 1                     # サイズ自動設定のときの右側マー
 WAIT_SEC = 0.15                  # キーを押してからスクリーンショットを撮る待ち時間(秒)
 PAGE_TIMEOUT = 5.0               # ページ変更を待つ最大時間(秒)
 
-BASE_SAVE_FOLDER = 'e:\\kss\\'   # 保存する場所 タイトルの前に入れられる
+BASE_SAVE_FOLDER = r'C:\Users\azuck\Downloads'   # 保存する場所 タイトルの前に入れられる
 KEY_PRESS_DURATION = 0.1         # キー押下の持続時間(秒)
 
 # PDF生成設定
