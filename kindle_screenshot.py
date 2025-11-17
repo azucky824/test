@@ -37,6 +37,7 @@ KEY_PRESS_DURATION = 0.1         # キー押下の持続時間(秒)
 CREATE_PDF = True                # PDF生成を行うかどうか
 CAPTURE_TOC = True               # 目次をキャプチャするかどうか
 DELETE_IMAGES = False            # PDF生成後にPNG画像を削除するか
+ENABLE_OCR = False               # OCRを実行して検索可能なPDFを生成するか
 
 # 座標設定
 USE_SAVED_COORDS = False         # 前回保存した座標を使用するか
@@ -282,6 +283,73 @@ def capture_table_of_contents(save_dir):
         return toc_path
     except Exception as e:
         print(f"目次のキャプチャに失敗: {e}")
+        return None
+
+
+def perform_ocr_on_pdf(pdf_path):
+    """PDFにOCRを実行して検索可能なPDFを生成する
+
+    Args:
+        pdf_path: 入力PDFファイルのパス
+
+    Returns:
+        成功時: OCR処理後のPDFパス、失敗時: None
+    """
+    try:
+        import ocrmypdf
+
+        print("\nOCR処理を開始...")
+        print("⚠ 初回実行時は時間がかかる場合があります")
+
+        # 出力ファイル名（元のファイルを上書き）
+        output_path = pdf_path
+
+        # 一時ファイルを作成
+        temp_output = pdf_path.replace('.pdf', '_ocr_temp.pdf')
+
+        # OCR実行（日本語と英語）
+        print("OCRエンジンを実行中（日本語+英語）...")
+
+        result = ocrmypdf.ocr(
+            pdf_path,
+            temp_output,
+            language='jpn+eng',  # 日本語と英語
+            deskew=True,         # 傾き補正
+            force_ocr=True,      # 既存のテキストを無視してOCR実行
+            optimize=1,          # 軽度の最適化
+            output_type='pdf',   # PDF出力
+            progress_bar=False,  # プログレスバーを無効化
+        )
+
+        # 一時ファイルを元のファイルに置き換え
+        if osp.exists(temp_output):
+            if osp.exists(output_path):
+                os.remove(output_path)
+            os.rename(temp_output, output_path)
+
+            file_size = osp.getsize(output_path) / (1024 * 1024)
+            print(f"✓ OCR処理完了")
+            print(f"  - 検索可能なPDF: {output_path}")
+            print(f"  - ファイルサイズ: {file_size:.2f} MB")
+            return output_path
+        else:
+            print("⚠ OCR処理に失敗しました")
+            return None
+
+    except ImportError:
+        print("⚠ OCRmyPDFがインストールされていません")
+        print("  インストール方法: pip install ocrmypdf")
+        print("  Tesseractも必要です: https://github.com/tesseract-ocr/tesseract")
+        return None
+    except Exception as e:
+        print(f"⚠ OCR処理中にエラーが発生: {e}")
+        # 一時ファイルをクリーンアップ
+        temp_output = pdf_path.replace('.pdf', '_ocr_temp.pdf')
+        if osp.exists(temp_output):
+            try:
+                os.remove(temp_output)
+            except:
+                pass
         return None
 
 
@@ -537,8 +605,18 @@ def main():
         if CREATE_PDF and page > 1:
             pdf_path = convert_images_to_pdf(save_dir, title, delete_images=DELETE_IMAGES)
             if pdf_path:
-                print(f"\n✓ 処理が完了しました")
-                print(f"  PDF: {pdf_path}")
+                # OCR処理
+                if ENABLE_OCR:
+                    ocr_path = perform_ocr_on_pdf(pdf_path)
+                    if ocr_path:
+                        print(f"\n✓ 処理が完了しました")
+                        print(f"  検索可能なPDF: {ocr_path}")
+                    else:
+                        print(f"\n⚠ PDFは生成されましたが、OCR処理に失敗しました")
+                        print(f"  PDF: {pdf_path}")
+                else:
+                    print(f"\n✓ 処理が完了しました")
+                    print(f"  PDF: {pdf_path}")
             else:
                 print("\n⚠ PNG画像は保存されましたが、PDF生成に失敗しました")
 

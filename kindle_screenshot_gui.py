@@ -394,6 +394,74 @@ def capture_table_of_contents(save_dir, log_callback):
         return None
 
 
+def perform_ocr_on_pdf(pdf_path, log_callback):
+    """PDFにOCRを実行して検索可能なPDFを生成する
+
+    Args:
+        pdf_path: 入力PDFファイルのパス
+        log_callback: ログ出力用のコールバック関数
+
+    Returns:
+        成功時: OCR処理後のPDFパス、失敗時: None
+    """
+    try:
+        import ocrmypdf
+
+        log_callback("\nOCR処理を開始...")
+        log_callback("⚠ 初回実行時は時間がかかる場合があります")
+
+        # 出力ファイル名（元のファイルを上書き）
+        output_path = pdf_path
+
+        # 一時ファイルを作成
+        temp_output = pdf_path.replace('.pdf', '_ocr_temp.pdf')
+
+        # OCR実行（日本語と英語）
+        log_callback("OCRエンジンを実行中（日本語+英語）...")
+
+        result = ocrmypdf.ocr(
+            pdf_path,
+            temp_output,
+            language='jpn+eng',  # 日本語と英語
+            deskew=True,         # 傾き補正
+            force_ocr=True,      # 既存のテキストを無視してOCR実行
+            optimize=1,          # 軽度の最適化
+            output_type='pdf',   # PDF出力
+            progress_bar=False,  # プログレスバーを無効化
+        )
+
+        # 一時ファイルを元のファイルに置き換え
+        if osp.exists(temp_output):
+            if osp.exists(output_path):
+                os.remove(output_path)
+            os.rename(temp_output, output_path)
+
+            file_size = osp.getsize(output_path) / (1024 * 1024)
+            log_callback(f"✓ OCR処理完了")
+            log_callback(f"  - 検索可能なPDF: {output_path}")
+            log_callback(f"  - ファイルサイズ: {file_size:.2f} MB")
+            return output_path
+        else:
+            log_callback("⚠ OCR処理に失敗しました")
+            return None
+
+    except ImportError:
+        log_callback("⚠ OCRmyPDFがインストールされていません")
+        log_callback("  インストール方法: pip install ocrmypdf")
+        log_callback("  Tesseractも必要です: https://github.com/tesseract-ocr/tesseract")
+        return None
+    except Exception as e:
+        log_callback(f"⚠ OCR処理中にエラーが発生: {e}")
+        # 一時ファイルをクリーンアップ
+        temp_output = pdf_path.replace('.pdf', '_ocr_temp.pdf')
+        if osp.exists(temp_output):
+            try:
+                os.remove(temp_output)
+            except:
+                pass
+        return None
+
+
 def convert_images_to_pdf(save_dir, title, log_callback, delete_images=False):
     """PNG画像をPDFに変換する
 
@@ -554,12 +622,15 @@ class KindleScreenshotGUI:
         self.delete_images_var = tk.BooleanVar(value=False)
         ttk.Checkbutton(options_frame, text="画像削除", variable=self.delete_images_var).grid(row=0, column=2, padx=5, sticky=tk.W)
 
+        self.enable_ocr_var = tk.BooleanVar(value=False)
+        ttk.Checkbutton(options_frame, text="OCR実行", variable=self.enable_ocr_var).grid(row=0, column=3, padx=5, sticky=tk.W)
+
         # ページ送り方向
-        ttk.Label(options_frame, text="ページ送り:").grid(row=0, column=3, padx=5, sticky=tk.W)
+        ttk.Label(options_frame, text="ページ送り:").grid(row=0, column=4, padx=5, sticky=tk.W)
         self.page_direction_var = tk.StringVar(value="left")
         direction_combo = ttk.Combobox(options_frame, textvariable=self.page_direction_var,
                                       values=["left", "right"], width=8, state="readonly")
-        direction_combo.grid(row=0, column=4, padx=5, sticky=tk.W)
+        direction_combo.grid(row=0, column=5, padx=5, sticky=tk.W)
 
         # 待機時間
         ttk.Label(options_frame, text="待機時間(秒):").grid(row=1, column=0, padx=5, pady=5, sticky=tk.W)
@@ -687,6 +758,7 @@ class KindleScreenshotGUI:
             capture_toc = self.capture_toc_var.get()
             wait_sec = self.wait_sec_var.get()
             delete_images = self.delete_images_var.get()
+            enable_ocr = self.enable_ocr_var.get()
 
             self.log(f"\n{'='*60}")
             self.log(f"キャプチャ開始: {title}")
@@ -796,7 +868,11 @@ class KindleScreenshotGUI:
 
             # PDF生成
             if create_pdf and page > 1 and not stop_capture:
-                convert_images_to_pdf(save_dir, title, self.log, delete_images=delete_images)
+                pdf_path = convert_images_to_pdf(save_dir, title, self.log, delete_images=delete_images)
+
+                # OCR処理
+                if pdf_path and self.enable_ocr_var.get():
+                    perform_ocr_on_pdf(pdf_path, self.log)
 
             if not stop_capture:
                 self.log(f"\n{'='*60}")
