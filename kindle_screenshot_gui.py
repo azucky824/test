@@ -238,12 +238,34 @@ def convert_images_to_pdf(save_dir, title, log_callback):
     """PNG画像をPDFに変換する"""
     try:
         log_callback("\nPDFを生成中...")
+        log_callback(f"検索ディレクトリ: {save_dir}")
 
-        png_files = sorted(glob.glob(osp.join(save_dir, '*.png')))
+        search_pattern = osp.join(save_dir, '*.png')
+        log_callback(f"検索パターン: {search_pattern}")
+
+        png_files = sorted(glob.glob(search_pattern))
+        log_callback(f"見つかったPNGファイル: {len(png_files)}個")
+
+        if png_files:
+            log_callback(f"最初のファイル: {osp.basename(png_files[0])}")
+            log_callback(f"最後のファイル: {osp.basename(png_files[-1])}")
+
         png_files = [f for f in png_files if not f.endswith('table_of_contents.png')]
+        log_callback(f"目次を除外後: {len(png_files)}個")
 
         if not png_files:
             log_callback("⚠ PNG画像が見つかりませんでした")
+            log_callback(f"確認: ディレクトリ '{save_dir}' にファイルが存在するか確認してください")
+            # ディレクトリの内容を確認
+            if osp.exists(save_dir):
+                all_files = os.listdir(save_dir)
+                log_callback(f"ディレクトリ内の全ファイル ({len(all_files)}個):")
+                for i, f in enumerate(all_files[:10]):  # 最初の10個だけ表示
+                    log_callback(f"  {i+1}. {f}")
+                if len(all_files) > 10:
+                    log_callback(f"  ... 他 {len(all_files) - 10}個")
+            else:
+                log_callback(f"⚠ ディレクトリが存在しません: {save_dir}")
             return None
 
         images = []
@@ -273,6 +295,8 @@ def convert_images_to_pdf(save_dir, title, log_callback):
 
     except Exception as e:
         log_callback(f"⚠ PDF生成に失敗: {e}")
+        import traceback
+        log_callback(traceback.format_exc())
         return None
 
 

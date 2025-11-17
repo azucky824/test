@@ -229,15 +229,36 @@ def convert_images_to_pdf(save_dir, title):
     """PNG画像をPDFに変換する"""
     try:
         print("\nPDFを生成中...")
+        print(f"検索ディレクトリ: {save_dir}")
 
         # PNG画像を取得（番号順にソート）
-        png_files = sorted(glob.glob(osp.join(save_dir, '*.png')))
+        search_pattern = osp.join(save_dir, '*.png')
+        print(f"検索パターン: {search_pattern}")
+
+        png_files = sorted(glob.glob(search_pattern))
+        print(f"見つかったPNGファイル: {len(png_files)}個")
+
+        if png_files:
+            print(f"最初のファイル: {png_files[0]}")
+            print(f"最後のファイル: {png_files[-1]}")
 
         # table_of_contents.pngを除外
         png_files = [f for f in png_files if not f.endswith('table_of_contents.png')]
+        print(f"目次を除外後: {len(png_files)}個")
 
         if not png_files:
-            print("PNG画像が見つかりませんでした")
+            print("⚠ PNG画像が見つかりませんでした")
+            print(f"確認: ディレクトリ '{save_dir}' にファイルが存在するか確認してください")
+            # ディレクトリの内容を確認
+            if osp.exists(save_dir):
+                all_files = os.listdir(save_dir)
+                print(f"ディレクトリ内の全ファイル ({len(all_files)}個):")
+                for i, f in enumerate(all_files[:10]):  # 最初の10個だけ表示
+                    print(f"  {i+1}. {f}")
+                if len(all_files) > 10:
+                    print(f"  ... 他 {len(all_files) - 10}個")
+            else:
+                print(f"⚠ ディレクトリが存在しません: {save_dir}")
             return None
 
         # 画像をPILで読み込み
@@ -262,7 +283,7 @@ def convert_images_to_pdf(save_dir, title):
                 quality=95,
                 optimize=False
             )
-            print(f"PDFを生成しました: {pdf_path}")
+            print(f"✓ PDFを生成しました: {pdf_path}")
             print(f"  - ページ数: {len(images)}")
 
             # ファイルサイズを表示
@@ -272,7 +293,7 @@ def convert_images_to_pdf(save_dir, title):
             return pdf_path
 
     except Exception as e:
-        print(f"PDF生成に失敗: {e}")
+        print(f"⚠ PDF生成に失敗: {e}")
         import traceback
         traceback.print_exc()
         return None
