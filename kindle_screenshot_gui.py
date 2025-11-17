@@ -29,6 +29,7 @@ WNDENUMPROC = WINFUNCTYPE(c_bool, POINTER(c_int), POINTER(c_int))
 
 # グローバル変数
 stop_capture = False
+selected_area = None  # (top, bottom, left, right)
 
 
 def find_kindle_window_with_title():
@@ -93,6 +94,93 @@ def activate_kindle_window(hwnd):
     pag.moveTo(rect.left + 60, rect.top + 10)
     pag.click()
     time.sleep(1)
+
+
+def select_area_interactively():
+    """フルスクリーン後に、ユーザーがマウスドラッグで範囲を選択できるようにする
+
+    Returns:
+        (top, bottom, left, right): 選択された座標、キャンセルの場合はNone
+    """
+    global selected_area
+    selected_area = None
+
+    # 透明なオーバーレイウィンドウを作成
+    overlay = tk.Toplevel()
+    overlay.attributes('-fullscreen', True)
+    overlay.attributes('-alpha', 0.3)  # 半透明
+    overlay.attributes('-topmost', True)
+    overlay.config(bg='black')
+
+    # キャンバスを作成
+    canvas = tk.Canvas(overlay, bg='black', highlightthickness=0)
+    canvas.pack(fill=tk.BOTH, expand=True)
+
+    # 説明テキスト
+    canvas.create_text(
+        overlay.winfo_screenwidth() // 2,
+        30,
+        text="マウスをドラッグしてキャプチャ範囲を選択してください（ESCキーでキャンセル）",
+        fill='white',
+        font=('Arial', 16, 'bold')
+    )
+
+    # ドラッグ状態
+    drag_data = {'start_x': 0, 'start_y': 0, 'rect': None}
+
+    def on_mouse_down(event):
+        drag_data['start_x'] = event.x
+        drag_data['start_y'] = event.y
+        if drag_data['rect']:
+            canvas.delete(drag_data['rect'])
+        drag_data['rect'] = canvas.create_rectangle(
+            event.x, event.y, event.x, event.y,
+            outline='red', width=3
+        )
+
+    def on_mouse_move(event):
+        if drag_data['rect']:
+            canvas.coords(
+                drag_data['rect'],
+                drag_data['start_x'], drag_data['start_y'],
+                event.x, event.y
+            )
+
+    def on_mouse_up(event):
+        global selected_area
+        if drag_data['rect']:
+            x1, y1 = drag_data['start_x'], drag_data['start_y']
+            x2, y2 = event.x, event.y
+
+            # 座標を正規化（左上と右下を確定）
+            left = min(x1, x2)
+            right = max(x1, x2)
+            top = min(y1, y2)
+            bottom = max(y1, y2)
+
+            # 最小サイズチェック（100x100ピクセル以上）
+            if (right - left) >= 100 and (bottom - top) >= 100:
+                selected_area = (top, bottom, left, right)
+                overlay.destroy()
+            else:
+                canvas.delete(drag_data['rect'])
+                drag_data['rect'] = None
+
+    def on_escape(event):
+        global selected_area
+        selected_area = None
+        overlay.destroy()
+
+    # イベントバインド
+    canvas.bind('<Button-1>', on_mouse_down)
+    canvas.bind('<B1-Motion>', on_mouse_move)
+    canvas.bind('<ButtonRelease-1>', on_mouse_up)
+    overlay.bind('<Escape>', on_escape)
+
+    # モーダルダイアログとして実行
+    overlay.wait_window()
+
+    return selected_area
 
 
 def detect_content_area(img):
@@ -382,33 +470,13 @@ class KindleScreenshotGUI:
                                 textvariable=self.wait_sec_var, width=8)
         wait_spin.grid(row=0, column=3, padx=5, pady=5, sticky=tk.W)
 
-        # トリミング座標設定
-        trim_frame = ttk.LabelFrame(settings_frame, text="トリミング座標 (空白の場合は自動検出)", padding="5")
-        trim_frame.grid(row=3, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=5)
+        # 範囲選択の説明
+        info_frame = ttk.Frame(settings_frame)
+        info_frame.grid(row=3, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=5)
 
-        # 上
-        ttk.Label(trim_frame, text="上 (Top):").grid(row=0, column=0, padx=5, pady=2, sticky=tk.W)
-        self.trim_top_var = tk.StringVar(value="")
-        ttk.Entry(trim_frame, textvariable=self.trim_top_var, width=10).grid(row=0, column=1, padx=5, pady=2, sticky=tk.W)
-        ttk.Label(trim_frame, text="px").grid(row=0, column=2, padx=2, pady=2, sticky=tk.W)
-
-        # 下
-        ttk.Label(trim_frame, text="下 (Bottom):").grid(row=0, column=3, padx=5, pady=2, sticky=tk.W)
-        self.trim_bottom_var = tk.StringVar(value="")
-        ttk.Entry(trim_frame, textvariable=self.trim_bottom_var, width=10).grid(row=0, column=4, padx=5, pady=2, sticky=tk.W)
-        ttk.Label(trim_frame, text="px").grid(row=0, column=5, padx=2, pady=2, sticky=tk.W)
-
-        # 左
-        ttk.Label(trim_frame, text="左 (Left):").grid(row=1, column=0, padx=5, pady=2, sticky=tk.W)
-        self.trim_left_var = tk.StringVar(value="")
-        ttk.Entry(trim_frame, textvariable=self.trim_left_var, width=10).grid(row=1, column=1, padx=5, pady=2, sticky=tk.W)
-        ttk.Label(trim_frame, text="px").grid(row=1, column=2, padx=2, pady=2, sticky=tk.W)
-
-        # 右
-        ttk.Label(trim_frame, text="右 (Right):").grid(row=1, column=3, padx=5, pady=2, sticky=tk.W)
-        self.trim_right_var = tk.StringVar(value="")
-        ttk.Entry(trim_frame, textvariable=self.trim_right_var, width=10).grid(row=1, column=4, padx=5, pady=2, sticky=tk.W)
-        ttk.Label(trim_frame, text="px").grid(row=1, column=5, padx=2, pady=2, sticky=tk.W)
+        info_label = ttk.Label(info_frame, text="💡 フルスクリーン後、マウスドラッグで範囲を選択できます",
+                              foreground="blue", font=('Arial', 9))
+        info_label.grid(row=0, column=0, padx=5, pady=5, sticky=tk.W)
 
         # ボタンフレーム
         button_frame = ttk.Frame(main_frame)
@@ -518,24 +586,6 @@ class KindleScreenshotGUI:
             capture_toc = self.capture_toc_var.get()
             wait_sec = self.wait_sec_var.get()
 
-            # トリミング座標を取得（空白の場合はNone）
-            try:
-                trim_top = int(self.trim_top_var.get()) if self.trim_top_var.get().strip() else None
-            except ValueError:
-                trim_top = None
-            try:
-                trim_bottom = int(self.trim_bottom_var.get()) if self.trim_bottom_var.get().strip() else None
-            except ValueError:
-                trim_bottom = None
-            try:
-                trim_left = int(self.trim_left_var.get()) if self.trim_left_var.get().strip() else None
-            except ValueError:
-                trim_left = None
-            try:
-                trim_right = int(self.trim_right_var.get()) if self.trim_right_var.get().strip() else None
-            except ValueError:
-                trim_right = None
-
             self.log(f"\n{'='*60}")
             self.log(f"キャプチャ開始: {title}")
             self.log(f"{'='*60}\n")
@@ -563,35 +613,24 @@ class KindleScreenshotGUI:
             pag.press('f11')
             sc_w, sc_h = pag.size()
             pag.moveTo(sc_w - 200, sc_h - 1)
-            time.sleep(5)
+            time.sleep(2)
 
-            # トリミング座標を設定
-            # ユーザーが指定した座標を使用、未指定の場合は自動検出
-            if all(coord is not None for coord in [trim_top, trim_bottom, trim_left, trim_right]):
-                # すべての座標が指定されている場合
-                top, bottom, left, right = trim_top, trim_bottom, trim_left, trim_right
-                self.log("固定座標でトリミング:")
-                self.log(f"  上: {top}px, 下: {bottom}px, 左: {left}px, 右: {right}px")
-                self.log(f"  サイズ: {right-left}x{bottom-top}px")
-            else:
-                # 自動検出
-                self.log("コンテンツ領域を自動検出中...")
-                img = ImageGrab.grab()
-                img = np.array(img)
-                img_bgr = cv2.cvtColor(img, cv2.COLOR_RGB2BGR)
+            # ユーザーに範囲選択させる
+            self.log("\n範囲選択モードを開始します...")
+            self.log("マウスドラッグで範囲を選択してください（ESCでキャンセル）")
 
-                try:
-                    # 4方向の余白を検出
-                    top, bottom, left, right = detect_content_area_full(img_bgr, threshold=250, margin=10)
-                    self.log(f"✓ 余白検出完了")
-                    self.log(f"  上: {top}px, 下: {bottom}px, 左: {left}px, 右: {right}px")
-                    self.log(f"  サイズ: {right-left}x{bottom-top}px")
-                except ValueError as e:
-                    self.log(f"⚠ 余白検出に失敗、代替方法を使用: {e}")
-                    # フォールバック: 左右のみ検出
-                    left, right = detect_content_area(img_bgr)
-                    top, bottom = 0, sc_h
-                    self.log(f"✓ 左右の端のみ検出 (左: {left}px, 右: {right}px)")
+            # 範囲選択を実行
+            selected_coords = select_area_interactively()
+
+            if stop_capture or selected_coords is None:
+                self.log("\n⏹ 範囲選択がキャンセルされました")
+                pag.press('f11')
+                return
+
+            top, bottom, left, right = selected_coords
+            self.log(f"✓ 範囲選択完了:")
+            self.log(f"  上: {top}px, 下: {bottom}px, 左: {left}px, 右: {right}px")
+            self.log(f"  サイズ: {right-left}x{bottom-top}px")
 
             # ページキャプチャ開始
             original_dir = os.getcwd()
