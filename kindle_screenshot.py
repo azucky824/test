@@ -35,6 +35,7 @@ KEY_PRESS_DURATION = 0.1         # キー押下の持続時間(秒)
 # PDF生成設定
 CREATE_PDF = True                # PDF生成を行うかどうか
 CAPTURE_TOC = True               # 目次をキャプチャするかどうか
+DELETE_IMAGES = False            # PDF生成後にPNG画像を削除するか
 
 # トリミング座標設定（Noneの場合は自動検出）
 # 例: TRIM_TOP = 100, TRIM_BOTTOM = 1920, TRIM_LEFT = 200, TRIM_RIGHT = 1720
@@ -228,8 +229,14 @@ def capture_table_of_contents(save_dir):
         return None
 
 
-def convert_images_to_pdf(save_dir, title):
-    """PNG画像をPDFに変換する"""
+def convert_images_to_pdf(save_dir, title, delete_images=False):
+    """PNG画像をPDFに変換する
+
+    Args:
+        save_dir: 保存ディレクトリ
+        title: PDFのタイトル
+        delete_images: PDF生成後にPNG画像を削除するか
+    """
     try:
         print("\nPDFを生成中...")
         print(f"検索ディレクトリ: {save_dir}")
@@ -297,6 +304,18 @@ def convert_images_to_pdf(save_dir, title):
             # ファイルサイズを表示
             file_size = osp.getsize(pdf_path) / (1024 * 1024)
             print(f"  - ファイルサイズ: {file_size:.2f} MB")
+
+            # PNG画像の削除
+            if delete_images:
+                print("\nPNG画像を削除中...")
+                deleted_count = 0
+                for png_file in png_files:
+                    try:
+                        os.remove(png_file)
+                        deleted_count += 1
+                    except Exception as e:
+                        print(f"  ⚠ 削除失敗: {osp.basename(png_file)} - {e}")
+                print(f"✓ {deleted_count}/{len(png_files)} 個のPNG画像を削除しました")
 
             return pdf_path
 
@@ -426,7 +445,7 @@ def main():
 
         # PDFを生成
         if CREATE_PDF and page > 1:
-            pdf_path = convert_images_to_pdf(save_dir, title)
+            pdf_path = convert_images_to_pdf(save_dir, title, delete_images=DELETE_IMAGES)
             if pdf_path:
                 print(f"\n✓ 処理が完了しました")
                 print(f"  PDF: {pdf_path}")

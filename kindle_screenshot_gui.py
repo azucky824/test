@@ -340,8 +340,15 @@ def capture_table_of_contents(save_dir, log_callback):
         return None
 
 
-def convert_images_to_pdf(save_dir, title, log_callback):
-    """PNG画像をPDFに変換する"""
+def convert_images_to_pdf(save_dir, title, log_callback, delete_images=False):
+    """PNG画像をPDFに変換する
+
+    Args:
+        save_dir: 保存ディレクトリ
+        title: PDFのタイトル
+        log_callback: ログ出力用のコールバック関数
+        delete_images: PDF生成後にPNG画像を削除するか
+    """
     try:
         log_callback("\nPDFを生成中...")
         log_callback(f"検索ディレクトリ: {save_dir}")
@@ -404,6 +411,18 @@ def convert_images_to_pdf(save_dir, title, log_callback):
             log_callback(f"  - ページ数: {len(images)}")
             log_callback(f"  - ファイルサイズ: {file_size:.2f} MB")
 
+            # PNG画像の削除
+            if delete_images:
+                log_callback("\nPNG画像を削除中...")
+                deleted_count = 0
+                for png_file in png_files:
+                    try:
+                        os.remove(png_file)
+                        deleted_count += 1
+                    except Exception as e:
+                        log_callback(f"  ⚠ 削除失敗: {osp.basename(png_file)} - {e}")
+                log_callback(f"✓ {deleted_count}/{len(png_files)} 個のPNG画像を削除しました")
+
             return pdf_path
 
     except Exception as e:
@@ -463,12 +482,15 @@ class KindleScreenshotGUI:
         self.capture_toc_var = tk.BooleanVar(value=True)
         ttk.Checkbutton(options_frame, text="目次キャプチャ", variable=self.capture_toc_var).grid(row=0, column=1, padx=5, sticky=tk.W)
 
+        self.delete_images_var = tk.BooleanVar(value=False)
+        ttk.Checkbutton(options_frame, text="画像削除", variable=self.delete_images_var).grid(row=0, column=2, padx=5, sticky=tk.W)
+
         # 待機時間
-        ttk.Label(options_frame, text="待機時間(秒):").grid(row=0, column=2, padx=5, pady=5, sticky=tk.W)
+        ttk.Label(options_frame, text="待機時間(秒):").grid(row=1, column=0, padx=5, pady=5, sticky=tk.W)
         self.wait_sec_var = tk.DoubleVar(value=0.15)
         wait_spin = ttk.Spinbox(options_frame, from_=0.1, to=2.0, increment=0.05,
                                 textvariable=self.wait_sec_var, width=8)
-        wait_spin.grid(row=0, column=3, padx=5, pady=5, sticky=tk.W)
+        wait_spin.grid(row=1, column=1, padx=5, pady=5, sticky=tk.W)
 
         # 範囲選択の説明
         info_frame = ttk.Frame(settings_frame)
@@ -585,6 +607,7 @@ class KindleScreenshotGUI:
             create_pdf = self.create_pdf_var.get()
             capture_toc = self.capture_toc_var.get()
             wait_sec = self.wait_sec_var.get()
+            delete_images = self.delete_images_var.get()
 
             self.log(f"\n{'='*60}")
             self.log(f"キャプチャ開始: {title}")
@@ -671,7 +694,7 @@ class KindleScreenshotGUI:
 
             # PDF生成
             if create_pdf and page > 1 and not stop_capture:
-                convert_images_to_pdf(save_dir, title, self.log)
+                convert_images_to_pdf(save_dir, title, self.log, delete_images=delete_images)
 
             if not stop_capture:
                 self.log(f"\n{'='*60}")
