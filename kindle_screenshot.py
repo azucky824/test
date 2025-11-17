@@ -285,24 +285,37 @@ def convert_images_to_pdf(save_dir, title, delete_images=False):
                 img = img.convert('RGB')
             images.append(img)
 
-        # PDFとして保存
-        pdf_path = osp.join(save_dir, f'{title}.pdf')
+        # PDFを一時的にsave_dir内に保存
+        temp_pdf_path = osp.join(save_dir, f'{title}.pdf')
 
         if images:
             # 最初の画像を基準に、残りを追加
             images[0].save(
-                pdf_path,
+                temp_pdf_path,
                 save_all=True,
                 append_images=images[1:],
                 resolution=100.0,
                 quality=95,
                 optimize=False
             )
-            print(f"✓ PDFを生成しました: {pdf_path}")
+
+            # PDFを親ディレクトリ（保存先フォルダ直下）に移動
+            parent_dir = osp.dirname(save_dir)
+            final_pdf_path = osp.join(parent_dir, f'{title}.pdf')
+
+            # 既存のPDFがあれば削除
+            if osp.exists(final_pdf_path):
+                os.remove(final_pdf_path)
+
+            # PDFを移動
+            import shutil
+            shutil.move(temp_pdf_path, final_pdf_path)
+
+            print(f"✓ PDFを生成しました: {final_pdf_path}")
             print(f"  - ページ数: {len(images)}")
 
             # ファイルサイズを表示
-            file_size = osp.getsize(pdf_path) / (1024 * 1024)
+            file_size = osp.getsize(final_pdf_path) / (1024 * 1024)
             print(f"  - ファイルサイズ: {file_size:.2f} MB")
 
             # PNG画像の削除
@@ -317,7 +330,7 @@ def convert_images_to_pdf(save_dir, title, delete_images=False):
                         print(f"  ⚠ 削除失敗: {osp.basename(png_file)} - {e}")
                 print(f"✓ {deleted_count}/{len(png_files)} 個のPNG画像を削除しました")
 
-            return pdf_path
+            return final_pdf_path
 
     except Exception as e:
         print(f"⚠ PDF生成に失敗: {e}")
