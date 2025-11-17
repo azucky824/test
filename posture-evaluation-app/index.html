@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>姿勢評価アプリケーション</title>
+    <link rel="stylesheet" href="css/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@mediapipe/pose/pose.js" crossorigin="anonymous"></script>
+    <script src="../lib/jspdf.umd.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>姿勢評価システム</h1>
+            <p class="subtitle">Posture Evaluation System</p>
+        </header>
+
+        <main>
+            <!-- アップロードセクション -->
+            <section class="upload-section">
+                <div class="upload-area">
+                    <h2>正面像</h2>
+                    <div class="upload-box" id="frontal-upload">
+                        <input type="file" id="frontal-input" accept="image/*">
+                        <label for="frontal-input">
+                            <div class="upload-placeholder">
+                                <svg width="50" height="50" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                    <polyline points="17 8 12 3 7 8"></polyline>
+                                    <line x1="12" y1="3" x2="12" y2="15"></line>
+                                </svg>
+                                <p>クリックして画像を選択</p>
+                                <p class="small">または、ドラッグ&ドロップ</p>
+                            </div>
+                        </label>
+                        <div class="preview-container" id="frontal-preview"></div>
+                    </div>
+                </div>
+
+                <div class="upload-area">
+                    <h2>矢状面像</h2>
+                    <div class="upload-box" id="sagittal-upload">
+                        <input type="file" id="sagittal-input" accept="image/*">
+                        <label for="sagittal-input">
+                            <div class="upload-placeholder">
+                                <svg width="50" height="50" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                    <polyline points="17 8 12 3 7 8"></polyline>
+                                    <line x1="12" y1="3" x2="12" y2="15"></line>
+                                </svg>
+                                <p>クリックして画像を選択</p>
+                                <p class="small">または、ドラッグ&ドロップ</p>
+                            </div>
+                        </label>
+                        <div class="preview-container" id="sagittal-preview"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 評価ボタン -->
+            <section class="action-section">
+                <button id="evaluate-btn" class="btn-primary" disabled>姿勢を評価する</button>
+                <div class="loading" id="loading" style="display: none;">
+                    <div class="spinner"></div>
+                    <p>評価中...</p>
+                </div>
+            </section>
+
+            <!-- 結果表示セクション -->
+            <section class="results-section" id="results-section" style="display: none;">
+                <h2>評価結果</h2>
+
+                <!-- ケンダル分類 -->
+                <div class="result-card">
+                    <h3>ケンダルの姿勢分類（矢状面）</h3>
+                    <div class="classification-result">
+                        <div class="classification-type" id="kendall-type"></div>
+                        <div class="classification-description" id="kendall-description"></div>
+                    </div>
+                </div>
+
+                <!-- 正面像評価 -->
+                <div class="result-card">
+                    <h3>正面像評価</h3>
+                    <div id="frontal-results"></div>
+                </div>
+
+                <!-- 矢状面像評価 -->
+                <div class="result-card">
+                    <h3>矢状面像評価</h3>
+                    <div id="sagittal-results"></div>
+                </div>
+
+                <!-- ビジュアル結果 -->
+                <div class="visual-results">
+                    <div class="visual-item">
+                        <h4>正面像（ランドマーク表示）</h4>
+                        <canvas id="frontal-canvas"></canvas>
+                    </div>
+                    <div class="visual-item">
+                        <h4>矢状面像（ランドマーク表示）</h4>
+                        <canvas id="sagittal-canvas"></canvas>
+                    </div>
+                </div>
+
+                <!-- 総合コメント -->
+                <div class="result-card">
+                    <h3>総合評価とアドバイス</h3>
+                    <div id="overall-comments"></div>
+                </div>
+
+                <!-- PDFダウンロード -->
+                <div class="action-section">
+                    <button id="download-pdf-btn" class="btn-primary">A4レポートをダウンロード</button>
+                </div>
+            </section>
+        </main>
+
+        <footer>
+            <p>&copy; 2025 Posture Evaluation System</p>
+        </footer>
+    </div>
+
+    <script src="js/pose-detection.js"></script>
+    <script src="js/kendall-classification.js"></script>
+    <script src="js/evaluation.js"></script>
+    <script src="js/pdf-report.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html>

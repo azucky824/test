@@ -1,0 +1,362 @@
+/* リセット */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+/* 基本スタイル */
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', Meiryo, sans-serif;
+    line-height: 1.6;
+    color: #333;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+    padding: 20px;
+}
+
+.container {
+    max-width: 1200px;
+    margin: 0 auto;
+    background: white;
+    border-radius: 20px;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+    overflow: hidden;
+}
+
+/* ヘッダー */
+header {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    padding: 40px 30px;
+    text-align: center;
+}
+
+header h1 {
+    font-size: 2.5em;
+    margin-bottom: 10px;
+    font-weight: 700;
+}
+
+.subtitle {
+    font-size: 1.1em;
+    opacity: 0.9;
+    font-weight: 300;
+}
+
+/* メインコンテンツ */
+main {
+    padding: 40px 30px;
+}
+
+/* アップロードセクション */
+.upload-section {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 30px;
+    margin-bottom: 30px;
+}
+
+.upload-area h2 {
+    font-size: 1.5em;
+    margin-bottom: 15px;
+    color: #667eea;
+}
+
+.upload-box {
+    position: relative;
+    border: 3px dashed #ddd;
+    border-radius: 15px;
+    padding: 20px;
+    min-height: 300px;
+    transition: all 0.3s ease;
+}
+
+.upload-box:hover {
+    border-color: #667eea;
+    background-color: #f8f9ff;
+}
+
+.upload-box input[type="file"] {
+    display: none;
+}
+
+.upload-box label {
+    display: block;
+    cursor: pointer;
+}
+
+.upload-placeholder {
+    text-align: center;
+    padding: 40px 20px;
+    color: #999;
+}
+
+.upload-placeholder svg {
+    margin-bottom: 15px;
+    stroke-width: 2;
+}
+
+.upload-placeholder p {
+    margin-bottom: 5px;
+}
+
+.upload-placeholder .small {
+    font-size: 0.9em;
+    color: #bbb;
+}
+
+.preview-container {
+    display: none;
+}
+
+.preview-container.active {
+    display: block;
+}
+
+.preview-container img {
+    width: 100%;
+    height: auto;
+    border-radius: 10px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+/* アクションセクション */
+.action-section {
+    text-align: center;
+    margin: 40px 0;
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    border: none;
+    padding: 15px 50px;
+    font-size: 1.1em;
+    border-radius: 50px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+    font-weight: 600;
+}
+
+.btn-primary:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+}
+
+.btn-primary:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* ローディング */
+.loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin: 20px 0;
+}
+
+.spinner {
+    border: 4px solid #f3f3f3;
+    border-top: 4px solid #667eea;
+    border-radius: 50%;
+    width: 50px;
+    height: 50px;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* 結果セクション */
+.results-section {
+    margin-top: 40px;
+    padding-top: 40px;
+    border-top: 2px solid #f0f0f0;
+}
+
+.results-section h2 {
+    font-size: 2em;
+    color: #667eea;
+    margin-bottom: 30px;
+    text-align: center;
+}
+
+.result-card {
+    background: #f8f9ff;
+    border-radius: 15px;
+    padding: 25px;
+    margin-bottom: 25px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+}
+
+.result-card h3 {
+    font-size: 1.5em;
+    color: #764ba2;
+    margin-bottom: 20px;
+    border-left: 4px solid #667eea;
+    padding-left: 15px;
+}
+
+.result-card h4 {
+    font-size: 1.2em;
+    color: #555;
+    margin: 15px 0 10px 0;
+}
+
+/* 分類結果 */
+.classification-result {
+    padding: 20px;
+    background: white;
+    border-radius: 10px;
+}
+
+.classification-type {
+    font-size: 1.8em;
+    font-weight: 700;
+    color: #667eea;
+    margin-bottom: 15px;
+    text-align: center;
+    padding: 15px;
+    background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
+    border-radius: 10px;
+}
+
+.classification-description {
+    font-size: 1.1em;
+    line-height: 1.8;
+    color: #555;
+}
+
+/* 評価項目 */
+.evaluation-item {
+    padding: 15px;
+    margin-bottom: 15px;
+    background: white;
+    border-radius: 10px;
+    border-left: 4px solid #ddd;
+}
+
+.evaluation-item.good {
+    border-left-color: #4caf50;
+}
+
+.evaluation-item.warning {
+    border-left-color: #ff9800;
+}
+
+.evaluation-item.poor {
+    border-left-color: #f44336;
+}
+
+.evaluation-item-title {
+    font-weight: 600;
+    font-size: 1.1em;
+    margin-bottom: 8px;
+    color: #333;
+}
+
+.evaluation-item-value {
+    font-size: 1em;
+    color: #666;
+    margin-bottom: 8px;
+}
+
+.evaluation-item-comment {
+    font-size: 0.95em;
+    color: #777;
+    line-height: 1.6;
+}
+
+/* ビジュアル結果 */
+.visual-results {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 30px;
+    margin: 30px 0;
+}
+
+.visual-item {
+    text-align: center;
+}
+
+.visual-item h4 {
+    margin-bottom: 15px;
+    color: #667eea;
+}
+
+.visual-item canvas {
+    width: 100%;
+    height: auto;
+    border-radius: 10px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+/* 総合コメント */
+#overall-comments {
+    background: white;
+    border-radius: 10px;
+    padding: 20px;
+}
+
+#overall-comments ul {
+    list-style: none;
+    padding-left: 0;
+}
+
+#overall-comments li {
+    padding: 12px 15px;
+    margin-bottom: 10px;
+    background: #f0f4ff;
+    border-radius: 8px;
+    position: relative;
+    padding-left: 40px;
+}
+
+#overall-comments li:before {
+    content: "✓";
+    position: absolute;
+    left: 15px;
+    color: #667eea;
+    font-weight: bold;
+    font-size: 1.2em;
+}
+
+/* フッター */
+footer {
+    background: #f8f9ff;
+    padding: 20px;
+    text-align: center;
+    color: #666;
+    font-size: 0.9em;
+}
+
+/* レスポンシブ */
+@media (max-width: 768px) {
+    .upload-section,
+    .visual-results {
+        grid-template-columns: 1fr;
+    }
+
+    header h1 {
+        font-size: 2em;
+    }
+
+    .container {
+        border-radius: 10px;
+    }
+
+    main {
+        padding: 20px 15px;
+    }
+}
+
+/* ドラッグオーバー状態 */
+.upload-box.drag-over {
+    border-color: #667eea;
+    background-color: #f0f4ff;
+}
