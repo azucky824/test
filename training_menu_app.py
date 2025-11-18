@@ -12,6 +12,9 @@ from tkinter import ttk, messagebox, filedialog
 from pathlib import Path
 from typing import List, Tuple, Optional
 import io
+import tempfile
+import subprocess
+import platform
 
 try:
     from PyPDF2 import PdfReader, PdfWriter
@@ -142,11 +145,12 @@ class TrainingMenuApp:
         self.print_inner_frame = ttk.Frame(self.print_canvas)
         self.print_canvas.create_window((0, 0), window=self.print_inner_frame, anchor='nw')
 
-        # 印刷ボタン
+        # ボタンフレーム
         button_frame = ttk.Frame(right_frame)
         button_frame.pack(side=tk.BOTTOM, fill=tk.X, pady=5)
 
         ttk.Button(button_frame, text="クリア", command=self.clear_print_queue).pack(side=tk.LEFT, padx=2)
+        ttk.Button(button_frame, text="PDF保存", command=self.save_as_pdf).pack(side=tk.RIGHT, padx=2)
         ttk.Button(button_frame, text="印刷", command=self.print_pages).pack(side=tk.RIGHT, padx=2)
 
     def load_pdf_list(self):
@@ -330,10 +334,89 @@ class TrainingMenuApp:
             self.print_queue.clear()
             self.update_print_queue_display()
 
+    def create_temp_pdf(self) -> str:
+        """一時PDFファイルを作成して返す"""
+        # 一時ファイルを作成
+        temp_file = tempfile.NamedTemporaryFile(suffix='.pdf', delete=False)
+        temp_path = temp_file.name
+        temp_file.close()
+
+        # 新しいPDFを作成
+        pdf_writer = PdfWriter()
+
+        for pdf_name, page_num, _ in self.print_queue:
+            pdf_path = os.path.join(self.pdf_directory, pdf_name)
+            pdf_reader = PdfReader(pdf_path)
+
+            if page_num < len(pdf_reader.pages):
+                pdf_writer.add_page(pdf_reader.pages[page_num])
+
+        # PDFを保存
+        with open(temp_path, 'wb') as output_file:
+            pdf_writer.write(output_file)
+
+        return temp_path
+
     def print_pages(self):
-        """印刷を実行"""
+        """プリンターで印刷を実行"""
         if not self.print_queue:
             messagebox.showwarning("警告", "印刷するページが選択されていません")
+            return
+
+        temp_path = None
+        try:
+            # 一時PDFを作成
+            temp_path = self.create_temp_pdf()
+
+            # OSに応じて印刷
+            system = platform.system()
+
+            if system == "Windows":
+                # Windowsの場合
+                os.startfile(temp_path, "print")
+                messagebox.showinfo("印刷", "印刷ジョブを送信しました")
+
+            elif system == "Darwin":
+                # macOSの場合
+                subprocess.run(["lpr", temp_path], check=True)
+                messagebox.showinfo("印刷", "印刷ジョブを送信しました")
+
+            elif system == "Linux":
+                # Linuxの場合
+                subprocess.run(["lpr", temp_path], check=True)
+                messagebox.showinfo("印刷", "印刷ジョブを送信しました")
+
+            else:
+                messagebox.showerror("エラー", f"お使いのOS（{system}）での印刷はサポートされていません")
+                return
+
+        except subprocess.CalledProcessError as e:
+            messagebox.showerror("エラー", f"印刷コマンドの実行に失敗しました:\n{e}")
+        except Exception as e:
+            messagebox.showerror("エラー", f"印刷に失敗しました:\n{e}")
+        finally:
+            # 一時ファイルを削除（Windowsの場合は少し待つ）
+            if temp_path and os.path.exists(temp_path):
+                if system == "Windows":
+                    # Windowsでは印刷スプーラーがファイルを使用中の可能性があるため、
+                    # 遅延削除を試みる
+                    self.root.after(5000, lambda: self._safe_delete_file(temp_path))
+                else:
+                    # Linux/Macでは即座に削除可能
+                    self._safe_delete_file(temp_path)
+
+    def _safe_delete_file(self, file_path: str):
+        """ファイルを安全に削除"""
+        try:
+            if os.path.exists(file_path):
+                os.remove(file_path)
+        except Exception:
+            pass  # 削除失敗は無視
+
+    def save_as_pdf(self):
+        """PDFファイルとして保存"""
+        if not self.print_queue:
+            messagebox.showwarning("警告", "保存するページが選択されていません")
             return
 
         try:
