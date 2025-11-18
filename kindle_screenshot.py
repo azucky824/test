@@ -35,9 +35,8 @@ KEY_PRESS_DURATION = 0.1         # キー押下の持続時間(秒)
 
 # PDF生成設定
 CREATE_PDF = True                # PDF生成を行うかどうか
-CAPTURE_TOC = True               # 目次をキャプチャするかどうか
-DELETE_IMAGES = False            # PDF生成後にPNG画像を削除するか
-ENABLE_OCR = False               # OCRを実行して検索可能なPDFを生成するか
+DELETE_IMAGES = True             # PDF生成後にPNG画像を削除するか
+ENABLE_OCR = True                # OCRを実行して検索可能なPDFを生成するか
 
 # 座標設定
 USE_SAVED_COORDS = False         # 前回保存した座標を使用するか
@@ -261,31 +260,6 @@ def wait_for_page_change(old_img, left, right, top=None, bottom=None, timeout=PA
             return None
 
 
-def capture_table_of_contents(save_dir):
-    """Kindleの目次をキャプチャする"""
-    try:
-        print("\n目次をキャプチャ中...")
-
-        # 目次を開く
-        pag.hotkey('ctrl', 't')
-        time.sleep(2)  # 目次が表示されるまで待機
-
-        # 目次のスクリーンショットを撮る
-        toc_img = ImageGrab.grab()
-        toc_path = osp.join(save_dir, 'table_of_contents.png')
-        toc_img.save(toc_path)
-        print(f"目次を保存しました: {toc_path}")
-
-        # 目次を閉じる（ESCキー）
-        pag.press('esc')
-        time.sleep(1)
-
-        return toc_path
-    except Exception as e:
-        print(f"目次のキャプチャに失敗: {e}")
-        return None
-
-
 def perform_ocr_on_pdf(pdf_path):
     """PDFにOCRを実行して検索可能なPDFを生成する
 
@@ -377,10 +351,6 @@ def convert_images_to_pdf(save_dir, title, delete_images=False):
         if png_files:
             print(f"最初のファイル: {png_files[0]}")
             print(f"最後のファイル: {png_files[-1]}")
-
-        # table_of_contents.pngを除外
-        png_files = [f for f in png_files if f != 'table_of_contents.png']
-        print(f"目次を除外後: {len(png_files)}個")
 
         # 絶対パスに変換
         png_files = [osp.join(save_dir, f) for f in png_files]
@@ -484,12 +454,6 @@ def main():
         print(f"保存先: {save_dir}")
     except Exception:
         return 1
-
-    # 目次をキャプチャ（フルスクリーン前）
-    if CAPTURE_TOC:
-        capture_table_of_contents(save_dir)
-        # Kindleウィンドウを再度アクティブにする
-        activate_kindle_window(hwnd)
 
     # フルスクリーンにする
     pag.press(KINDLE_FULLSCREEN_KEY)

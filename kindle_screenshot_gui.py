@@ -372,28 +372,6 @@ def wait_for_page_change(old_img, left, right, top=None, bottom=None, timeout=5.
             return None
 
 
-def capture_table_of_contents(save_dir, log_callback):
-    """Kindleの目次をキャプチャする"""
-    try:
-        log_callback("目次をキャプチャ中...")
-
-        pag.hotkey('ctrl', 't')
-        time.sleep(2)
-
-        toc_img = ImageGrab.grab()
-        toc_path = osp.join(save_dir, 'table_of_contents.png')
-        toc_img.save(toc_path)
-        log_callback(f"✓ 目次を保存: table_of_contents.png")
-
-        pag.press('esc')
-        time.sleep(1)
-
-        return toc_path
-    except Exception as e:
-        log_callback(f"⚠ 目次のキャプチャに失敗: {e}")
-        return None
-
-
 def perform_ocr_on_pdf(pdf_path, log_callback):
     """PDFにOCRを実行して検索可能なPDFを生成する
 
@@ -487,10 +465,6 @@ def convert_images_to_pdf(save_dir, title, log_callback, delete_images=False):
         if png_files:
             log_callback(f"最初のファイル: {png_files[0]}")
             log_callback(f"最後のファイル: {png_files[-1]}")
-
-        # table_of_contents.pngを除外
-        png_files = [f for f in png_files if f != 'table_of_contents.png']
-        log_callback(f"目次を除外後: {len(png_files)}個")
 
         # 絶対パスに変換
         png_files = [osp.join(save_dir, f) for f in png_files]
@@ -613,26 +587,24 @@ class KindleScreenshotGUI:
         options_frame = ttk.Frame(settings_frame)
         options_frame.grid(row=2, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=5)
 
+        # 1行目のオプション
         self.create_pdf_var = tk.BooleanVar(value=True)
         ttk.Checkbutton(options_frame, text="PDF生成", variable=self.create_pdf_var).grid(row=0, column=0, padx=5, sticky=tk.W)
 
-        self.capture_toc_var = tk.BooleanVar(value=True)
-        ttk.Checkbutton(options_frame, text="目次キャプチャ", variable=self.capture_toc_var).grid(row=0, column=1, padx=5, sticky=tk.W)
+        self.delete_images_var = tk.BooleanVar(value=True)
+        ttk.Checkbutton(options_frame, text="画像削除", variable=self.delete_images_var).grid(row=0, column=1, padx=5, sticky=tk.W)
 
-        self.delete_images_var = tk.BooleanVar(value=False)
-        ttk.Checkbutton(options_frame, text="画像削除", variable=self.delete_images_var).grid(row=0, column=2, padx=5, sticky=tk.W)
-
-        self.enable_ocr_var = tk.BooleanVar(value=False)
-        ttk.Checkbutton(options_frame, text="OCR実行", variable=self.enable_ocr_var).grid(row=0, column=3, padx=5, sticky=tk.W)
+        self.enable_ocr_var = tk.BooleanVar(value=True)
+        ttk.Checkbutton(options_frame, text="OCR実行", variable=self.enable_ocr_var).grid(row=0, column=2, padx=5, sticky=tk.W)
 
         # ページ送り方向
-        ttk.Label(options_frame, text="ページ送り:").grid(row=0, column=4, padx=5, sticky=tk.W)
+        ttk.Label(options_frame, text="ページ送り:").grid(row=0, column=3, padx=(15, 5), sticky=tk.W)
         self.page_direction_var = tk.StringVar(value="left")
         direction_combo = ttk.Combobox(options_frame, textvariable=self.page_direction_var,
                                       values=["left", "right"], width=8, state="readonly")
-        direction_combo.grid(row=0, column=5, padx=5, sticky=tk.W)
+        direction_combo.grid(row=0, column=4, padx=5, sticky=tk.W)
 
-        # 待機時間
+        # 2行目のオプション
         ttk.Label(options_frame, text="待機時間(秒):").grid(row=1, column=0, padx=5, pady=5, sticky=tk.W)
         self.wait_sec_var = tk.DoubleVar(value=0.15)
         wait_spin = ttk.Spinbox(options_frame, from_=0.1, to=2.0, increment=0.05,
@@ -755,7 +727,6 @@ class KindleScreenshotGUI:
             title = self.title_var.get().strip()
             save_folder = self.save_folder_var.get().strip()
             create_pdf = self.create_pdf_var.get()
-            capture_toc = self.capture_toc_var.get()
             wait_sec = self.wait_sec_var.get()
             delete_images = self.delete_images_var.get()
             enable_ocr = self.enable_ocr_var.get()
@@ -776,11 +747,6 @@ class KindleScreenshotGUI:
             # 保存ディレクトリを作成
             save_dir = create_save_directory(save_folder, title)
             self.log(f"保存先: {save_dir}")
-
-            # 目次をキャプチャ
-            if capture_toc:
-                capture_table_of_contents(save_dir, self.log)
-                activate_kindle_window(hwnd)
 
             # フルスクリーンにする
             self.log("\nフルスクリーンモードに切り替え中...")
