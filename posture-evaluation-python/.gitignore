@@ -29,9 +29,11 @@ venv.bak/
 
 # PyInstaller
 *.manifest
-*.spec
 build/
 dist/
+
+# Keep the spec file for EXE building
+!PostureEvaluation.spec
 
 # IDE
 .vscode/
