@@ -1,0 +1,17 @@
+# GUI Framework
+customtkinter==5.2.1
+pillow==10.1.0
+
+# Computer Vision and Pose Detection
+mediapipe==0.10.9
+opencv-python==4.8.1.78
+numpy==1.24.3
+
+# PDF Generation
+reportlab==4.0.7
+
+# EXE Building
+pyinstaller==6.3.0
+
+# Utilities
+python-dateutil==2.8.2
