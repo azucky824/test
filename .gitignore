@@ -23,8 +23,25 @@ build/
 # Python
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+*.spec
 create_icons.py
 create_simple_icons.py
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Sample PDFs (for testing)
+sample_*.pdf
+training_menu.pdf
 
 # Node modules (if using npm in future)
 node_modules/
