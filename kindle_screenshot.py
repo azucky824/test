@@ -412,17 +412,15 @@ def convert_images_to_pdf(save_dir, title, delete_images=False):
             file_size = osp.getsize(final_pdf_path) / (1024 * 1024)
             print(f"  - ファイルサイズ: {file_size:.2f} MB")
 
-            # PNG画像の削除
+            # 画像フォルダの削除
             if delete_images:
-                print("\nPNG画像を削除中...")
-                deleted_count = 0
-                for png_file in png_files:
-                    try:
-                        os.remove(png_file)
-                        deleted_count += 1
-                    except Exception as e:
-                        print(f"  ⚠ 削除失敗: {osp.basename(png_file)} - {e}")
-                print(f"✓ {deleted_count}/{len(png_files)} 個のPNG画像を削除しました")
+                print("\n画像フォルダを削除中...")
+                try:
+                    import shutil
+                    shutil.rmtree(save_dir)
+                    print(f"✓ フォルダを削除しました: {save_dir}")
+                except Exception as e:
+                    print(f"  ⚠ フォルダ削除失敗: {e}")
 
             return final_pdf_path
 

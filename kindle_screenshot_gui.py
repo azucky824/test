@@ -123,11 +123,88 @@ def select_area_interactively():
         30,
         text="マウスをドラッグしてキャプチャ範囲を選択してください（ESCキーでキャンセル）",
         fill='white',
-        font=('Arial', 16, 'bold')
+        font=('Arial', 16, 'bold'),
+        tags='info_text'
     )
+
+    # ルーペウィンドウを作成
+    magnifier = tk.Toplevel(overlay)
+    magnifier.attributes('-topmost', True)
+    magnifier.overrideredirect(True)  # タイトルバーなし
+    magnifier.config(bg='white')
+
+    # ルーペのキャンバス（拡大表示用）
+    mag_size = 200  # ルーペのサイズ
+    zoom_factor = 3  # 拡大率
+    mag_canvas = tk.Canvas(magnifier, width=mag_size, height=mag_size,
+                          bg='white', highlightthickness=2, highlightbackground='red')
+    mag_canvas.pack()
+
+    # 座標表示用のラベル
+    coord_label = tk.Label(magnifier, text="", font=('Arial', 10, 'bold'),
+                          bg='white', fg='black')
+    coord_label.pack()
 
     # ドラッグ状態
     drag_data = {'start_x': 0, 'start_y': 0, 'rect': None}
+
+    # スクリーンショット用の画像（ルーペ表示用）
+    screen_img = ImageGrab.grab()
+    screen_array = np.array(screen_img)
+
+    def update_magnifier(x, y):
+        """ルーペを更新する"""
+        try:
+            # ルーペの位置を設定（カーソルの右下に表示）
+            mag_x = x + 20
+            mag_y = y + 20
+
+            # 画面外に出ないように調整
+            screen_w = overlay.winfo_screenwidth()
+            screen_h = overlay.winfo_screenheight()
+            if mag_x + mag_size > screen_w:
+                mag_x = x - mag_size - 20
+            if mag_y + mag_size + 30 > screen_h:  # ラベル分も考慮
+                mag_y = y - mag_size - 50
+
+            magnifier.geometry(f"+{mag_x}+{mag_y}")
+
+            # 拡大表示する領域を計算
+            capture_size = mag_size // zoom_factor
+            half_capture = capture_size // 2
+
+            x1 = max(0, x - half_capture)
+            y1 = max(0, y - half_capture)
+            x2 = min(screen_array.shape[1], x + half_capture)
+            y2 = min(screen_array.shape[0], y + half_capture)
+
+            # 領域を切り取って拡大
+            region = screen_array[y1:y2, x1:x2]
+
+            # PIL Imageに変換して拡大
+            from PIL import Image as PILImage
+            pil_img = PILImage.fromarray(region)
+            zoomed = pil_img.resize((mag_size, mag_size), PILImage.NEAREST)
+
+            # Tkinter PhotoImageに変換
+            from PIL import ImageTk
+            photo = ImageTk.PhotoImage(zoomed)
+
+            # キャンバスに表示（中央に十字線を描画）
+            mag_canvas.delete('all')
+            mag_canvas.create_image(0, 0, anchor=tk.NW, image=photo)
+            mag_canvas.image = photo  # 参照を保持
+
+            # 十字線（中央）
+            center = mag_size // 2
+            mag_canvas.create_line(center, 0, center, mag_size, fill='red', width=2)
+            mag_canvas.create_line(0, center, mag_size, center, fill='red', width=2)
+
+            # 座標表示
+            coord_label.config(text=f"X: {x}, Y: {y}")
+
+        except Exception as e:
+            print(f"ルーペ更新エラー: {e}")
 
     def on_mouse_down(event):
         drag_data['start_x'] = event.x
@@ -138,6 +215,7 @@ def select_area_interactively():
             event.x, event.y, event.x, event.y,
             outline='red', width=3
         )
+        update_magnifier(event.x, event.y)
 
     def on_mouse_move(event):
         if drag_data['rect']:
@@ -146,6 +224,7 @@ def select_area_interactively():
                 drag_data['start_x'], drag_data['start_y'],
                 event.x, event.y
             )
+        update_magnifier(event.x, event.y)
 
     def on_mouse_up(event):
         global selected_area
@@ -162,6 +241,7 @@ def select_area_interactively():
             # 最小サイズチェック（100x100ピクセル以上）
             if (right - left) >= 100 and (bottom - top) >= 100:
                 selected_area = (top, bottom, left, right)
+                magnifier.destroy()
                 overlay.destroy()
             else:
                 canvas.delete(drag_data['rect'])
@@ -170,13 +250,18 @@ def select_area_interactively():
     def on_escape(event):
         global selected_area
         selected_area = None
+        magnifier.destroy()
         overlay.destroy()
 
     # イベントバインド
     canvas.bind('<Button-1>', on_mouse_down)
     canvas.bind('<B1-Motion>', on_mouse_move)
     canvas.bind('<ButtonRelease-1>', on_mouse_up)
+    canvas.bind('<Motion>', lambda e: update_magnifier(e.x, e.y))
     overlay.bind('<Escape>', on_escape)
+
+    # 初期ルーペ位置
+    magnifier.geometry(f"+100+100")
 
     # モーダルダイアログとして実行
     overlay.wait_window()
@@ -522,17 +607,15 @@ def convert_images_to_pdf(save_dir, title, log_callback, delete_images=False):
             log_callback(f"  - ページ数: {len(images)}")
             log_callback(f"  - ファイルサイズ: {file_size:.2f} MB")
 
-            # PNG画像の削除
+            # 画像フォルダの削除
             if delete_images:
-                log_callback("\nPNG画像を削除中...")
-                deleted_count = 0
-                for png_file in png_files:
-                    try:
-                        os.remove(png_file)
-                        deleted_count += 1
-                    except Exception as e:
-                        log_callback(f"  ⚠ 削除失敗: {osp.basename(png_file)} - {e}")
-                log_callback(f"✓ {deleted_count}/{len(png_files)} 個のPNG画像を削除しました")
+                log_callback("\n画像フォルダを削除中...")
+                try:
+                    import shutil
+                    shutil.rmtree(save_dir)
+                    log_callback(f"✓ フォルダを削除しました: {save_dir}")
+                except Exception as e:
+                    log_callback(f"  ⚠ フォルダ削除失敗: {e}")
 
             return final_pdf_path
 
