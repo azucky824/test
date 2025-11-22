@@ -1008,6 +1008,11 @@ class KindleScreenshotGUI:
             while not stop_capture:
                 filename = str(page).zfill(3) + '.png'
 
+                # 最初のページは3秒待機（ページが安定するまで）
+                if page == 1:
+                    self.log("最初のページを安定させるため3秒待機中...")
+                    time.sleep(3)
+
                 # 固定座標でキャプチャ
                 new_img = wait_for_page_change(old_img, left, right, top, bottom,
                                               timeout=5.0, wait_sec=wait_sec)
