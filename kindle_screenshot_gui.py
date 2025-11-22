@@ -667,8 +667,9 @@ class KindleScreenshotGUI:
     def __init__(self, root):
         self.root = root
         self.root.title("Kindle Screenshot Tool")
-        self.root.geometry("700x650")
-        self.root.resizable(False, False)
+        self.root.geometry("750x720")
+        self.root.resizable(True, True)
+        self.root.minsize(750, 720)
 
         self.is_capturing = False
         self.capture_thread = None
