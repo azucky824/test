@@ -716,7 +716,7 @@ class KindleScreenshotGUI:
         # カードタイトル
         card_title = ttk.Label(settings_card, text="基本設定",
                               style='Subtitle.TLabel')
-        card_title.grid(row=0, column=0, columnspan=3, sticky=tk.W, pady=(0, 15))
+        card_title.grid(row=0, column=0, columnspan=4, sticky=tk.W, pady=(0, 15))
 
         # 本のタイトル
         ttk.Label(settings_card, text="本のタイトル", style='Normal.TLabel').grid(
@@ -724,7 +724,7 @@ class KindleScreenshotGUI:
         self.title_var = tk.StringVar()
         self.title_entry = ttk.Entry(settings_card, textvariable=self.title_var,
                                      font=('Segoe UI', 10), width=50)
-        self.title_entry.grid(row=1, column=1, columnspan=2, sticky=(tk.W, tk.E),
+        self.title_entry.grid(row=1, column=1, columnspan=3, sticky=(tk.W, tk.E),
                              pady=8, padx=(10, 0))
 
         # 保存先フォルダ
@@ -736,7 +736,10 @@ class KindleScreenshotGUI:
         self.folder_entry.grid(row=2, column=1, sticky=(tk.W, tk.E), pady=8, padx=(10, 5))
 
         browse_btn = ttk.Button(settings_card, text="参照", command=self.browse_folder)
-        browse_btn.grid(row=2, column=2, pady=8, padx=(5, 0))
+        browse_btn.grid(row=2, column=2, pady=8, padx=(5, 5))
+
+        open_folder_btn = ttk.Button(settings_card, text="開く", command=self.open_folder)
+        open_folder_btn.grid(row=2, column=3, pady=8, padx=(5, 0))
 
         # オプションカード
         options_card = ttk.Frame(main_frame, style='Card.TFrame', padding="20")
@@ -865,6 +868,15 @@ class KindleScreenshotGUI:
         folder = filedialog.askdirectory()
         if folder:
             self.save_folder_var.set(folder)
+
+    def open_folder(self):
+        """保存先フォルダをエクスプローラーで開く"""
+        folder = self.save_folder_var.get().strip()
+        if folder and osp.exists(folder):
+            import subprocess
+            subprocess.Popen(['explorer', folder])
+        else:
+            messagebox.showwarning("警告", "フォルダが存在しません")
 
     def auto_detect_kindle(self):
         """Kindleウィンドウを自動検出してタイトルを設定"""
