@@ -316,7 +316,26 @@ def perform_ocr_on_pdf(pdf_path):
         print("  Tesseractも必要です: https://github.com/tesseract-ocr/tesseract")
         return None
     except Exception as e:
-        print(f"⚠ OCR処理中にエラーが発生: {e}")
+        error_msg = str(e)
+        print(f"⚠ OCR処理中にエラーが発生: {error_msg}")
+
+        # Tesseractが見つからない場合の詳細案内
+        if "tesseract" in error_msg.lower() and "path" in error_msg.lower():
+            print("\n【Tesseract OCRのインストールが必要です】")
+            print("1. Tesseractをダウンロード:")
+            print("   https://github.com/UB-Mannheim/tesseract/wiki")
+            print("   → 最新版のインストーラー (.exe) をダウンロード")
+            print("")
+            print("2. インストール時の注意:")
+            print("   ✓ 'Additional language data' で日本語(jpn)を選択")
+            print("   ✓ デフォルトのインストール先でOK")
+            print("   ✓ インストール後、PCを再起動してください")
+            print("")
+            print("3. インストール確認:")
+            print("   コマンドプロンプトで: tesseract --version")
+            print("")
+            print("参考: https://tesseract-ocr.github.io/tessdoc/Installation.html")
+
         # 一時ファイルをクリーンアップ
         temp_output = pdf_path.replace('.pdf', '_ocr_temp.pdf')
         if osp.exists(temp_output):

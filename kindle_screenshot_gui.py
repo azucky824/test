@@ -169,17 +169,35 @@ def select_area_interactively():
 
             magnifier.geometry(f"+{mag_x}+{mag_y}")
 
-            # 拡大表示する領域を計算
-            capture_size = mag_size // zoom_factor
-            half_capture = capture_size // 2
+            # 拡大表示する領域を計算（カーソル位置を正確に中央に）
+            capture_size = mag_size // zoom_factor  # 66ピクセル
+            half_capture = capture_size // 2  # 33ピクセル
 
-            x1 = max(0, x - half_capture)
-            y1 = max(0, y - half_capture)
-            x2 = min(screen_array.shape[1], x + half_capture)
-            y2 = min(screen_array.shape[0], y + half_capture)
+            # キャプチャ範囲（境界外になる場合も考慮）
+            x1 = x - half_capture
+            y1 = y - half_capture
+            x2 = x1 + capture_size
+            y2 = y1 + capture_size
 
-            # 領域を切り取って拡大
-            region = screen_array[y1:y2, x1:x2]
+            # 画面範囲内にクリップしてキャプチャ
+            screen_h_max, screen_w_max = screen_array.shape[:2]
+
+            # 実際にキャプチャできる範囲
+            cap_x1 = max(0, x1)
+            cap_y1 = max(0, y1)
+            cap_x2 = min(screen_w_max, x2)
+            cap_y2 = min(screen_h_max, y2)
+
+            # 固定サイズの領域を作成（黒で初期化）
+            region = np.zeros((capture_size, capture_size, 3), dtype=np.uint8)
+
+            # 実際にキャプチャした部分を配置
+            paste_x1 = cap_x1 - x1
+            paste_y1 = cap_y1 - y1
+            paste_x2 = paste_x1 + (cap_x2 - cap_x1)
+            paste_y2 = paste_y1 + (cap_y2 - cap_y1)
+
+            region[paste_y1:paste_y2, paste_x1:paste_x2] = screen_array[cap_y1:cap_y2, cap_x1:cap_x2]
 
             # PIL Imageに変換して拡大
             from PIL import Image as PILImage
@@ -195,7 +213,7 @@ def select_area_interactively():
             mag_canvas.create_image(0, 0, anchor=tk.NW, image=photo)
             mag_canvas.image = photo  # 参照を保持
 
-            # 十字線（中央）
+            # 十字線（中央）- カーソル位置を正確に示す
             center = mag_size // 2
             mag_canvas.create_line(center, 0, center, mag_size, fill='red', width=2)
             mag_canvas.create_line(0, center, mag_size, center, fill='red', width=2)
@@ -514,7 +532,26 @@ def perform_ocr_on_pdf(pdf_path, log_callback):
         log_callback("  Tesseractも必要です: https://github.com/tesseract-ocr/tesseract")
         return None
     except Exception as e:
-        log_callback(f"⚠ OCR処理中にエラーが発生: {e}")
+        error_msg = str(e)
+        log_callback(f"⚠ OCR処理中にエラーが発生: {error_msg}")
+
+        # Tesseractが見つからない場合の詳細案内
+        if "tesseract" in error_msg.lower() and "path" in error_msg.lower():
+            log_callback("\n【Tesseract OCRのインストールが必要です】")
+            log_callback("1. Tesseractをダウンロード:")
+            log_callback("   https://github.com/UB-Mannheim/tesseract/wiki")
+            log_callback("   → 最新版のインストーラー (.exe) をダウンロード")
+            log_callback("")
+            log_callback("2. インストール時の注意:")
+            log_callback("   ✓ 'Additional language data' で日本語(jpn)を選択")
+            log_callback("   ✓ デフォルトのインストール先でOK")
+            log_callback("   ✓ インストール後、PCを再起動してください")
+            log_callback("")
+            log_callback("3. インストール確認:")
+            log_callback("   コマンドプロンプトで: tesseract --version")
+            log_callback("")
+            log_callback("参考: https://tesseract-ocr.github.io/tessdoc/Installation.html")
+
         # 一時ファイルをクリーンアップ
         temp_output = pdf_path.replace('.pdf', '_ocr_temp.pdf')
         if osp.exists(temp_output):
