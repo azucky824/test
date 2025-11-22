@@ -579,7 +579,7 @@ def convert_images_to_pdf(save_dir, title, log_callback, delete_images=False):
 class KindleScreenshotGUI:
     def __init__(self, root):
         self.root = root
-        self.root.title("Kindle Screenshot Automator")
+        self.root.title("Kindle2PDF")
         self.root.geometry("750x650")
         self.root.resizable(True, True)
         self.root.minsize(750, 650)
@@ -671,16 +671,6 @@ class KindleScreenshotGUI:
                        font=('Segoe UI', 8),
                        padding=(8, 3))
 
-        # チェックボタンスタイル
-        style.configure('Custom.TCheckbutton',
-                       background=self.colors['card'],
-                       foreground=self.colors['text_dark'],
-                       font=('Segoe UI', 9))
-
-        style.map('Custom.TCheckbutton',
-                 background=[('active', self.colors['card']),
-                           ('selected', self.colors['card'])])
-
     def setup_ui(self):
         """UIを構築する"""
         # メインフレーム
@@ -695,7 +685,7 @@ class KindleScreenshotGUI:
         header_frame = ttk.Frame(main_frame, style='BG.TFrame')
         header_frame.grid(row=0, column=0, sticky=(tk.W, tk.E), pady=(0, 12))
 
-        title_label = ttk.Label(header_frame, text="Kindle Screenshot Automator",
+        title_label = ttk.Label(header_frame, text="Kindle2PDF",
                                style='Title.TLabel')
         title_label.pack(side=tk.LEFT)
 
@@ -749,18 +739,59 @@ class KindleScreenshotGUI:
         opt_frame1 = ttk.Frame(options_card, style='Card.TFrame')
         opt_frame1.pack(fill=tk.X, pady=(0, 6))
 
+        # トグルボタン（選択時に全体が色付き）
         self.create_pdf_var = tk.BooleanVar(value=True)
-        ttk.Checkbutton(opt_frame1, text="PDF生成", variable=self.create_pdf_var,
-                       style='Custom.TCheckbutton').pack(side=tk.LEFT, padx=(0, 15))
+        self.pdf_btn = tk.Checkbutton(opt_frame1, text="PDF生成", variable=self.create_pdf_var,
+                      indicatoron=0,
+                      selectcolor=self.colors['primary'],
+                      bg='white',
+                      fg=self.colors['text_dark'],
+                      font=('Segoe UI', 9),
+                      relief=tk.RAISED,
+                      borderwidth=1,
+                      padx=12, pady=4)
+        self.pdf_btn.pack(side=tk.LEFT, padx=(0, 8))
 
         self.delete_images_var = tk.BooleanVar(value=True)
-        ttk.Checkbutton(opt_frame1, text="画像削除", variable=self.delete_images_var,
-                       style='Custom.TCheckbutton').pack(side=tk.LEFT, padx=(0, 15))
+        self.del_btn = tk.Checkbutton(opt_frame1, text="画像削除", variable=self.delete_images_var,
+                      indicatoron=0,
+                      selectcolor=self.colors['primary'],
+                      bg='white',
+                      fg=self.colors['text_dark'],
+                      font=('Segoe UI', 9),
+                      relief=tk.RAISED,
+                      borderwidth=1,
+                      padx=12, pady=4)
+        self.del_btn.pack(side=tk.LEFT, padx=(0, 8))
 
         self.use_saved_coords_var = tk.BooleanVar(value=False)
-        ttk.Checkbutton(opt_frame1, text="前回の座標を使用",
-                       variable=self.use_saved_coords_var,
-                       style='Custom.TCheckbutton').pack(side=tk.LEFT)
+        self.coords_btn = tk.Checkbutton(opt_frame1, text="前回の座標を使用",
+                      variable=self.use_saved_coords_var,
+                      indicatoron=0,
+                      selectcolor=self.colors['primary'],
+                      bg='white',
+                      fg=self.colors['text_dark'],
+                      font=('Segoe UI', 9),
+                      relief=tk.RAISED,
+                      borderwidth=1,
+                      padx=12, pady=4)
+        self.coords_btn.pack(side=tk.LEFT)
+
+        # トグルボタンの文字色を選択時に変更
+        def update_button_color(btn, var):
+            if var.get():
+                btn.config(fg='white')
+            else:
+                btn.config(fg=self.colors['text_dark'])
+
+        self.create_pdf_var.trace_add('write', lambda *args: update_button_color(self.pdf_btn, self.create_pdf_var))
+        self.delete_images_var.trace_add('write', lambda *args: update_button_color(self.del_btn, self.delete_images_var))
+        self.use_saved_coords_var.trace_add('write', lambda *args: update_button_color(self.coords_btn, self.use_saved_coords_var))
+
+        # 初期状態の色を設定
+        update_button_color(self.pdf_btn, self.create_pdf_var)
+        update_button_color(self.del_btn, self.delete_images_var)
+        update_button_color(self.coords_btn, self.use_saved_coords_var)
 
         # オプション行2
         opt_frame2 = ttk.Frame(options_card, style='Card.TFrame')
