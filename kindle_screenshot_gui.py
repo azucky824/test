@@ -953,6 +953,10 @@ class KindleScreenshotGUI:
         """キャプチャ処理のメイン"""
         global stop_capture
 
+        # PyAutoGUIのフェイルセーフを一時的に無効化（自動化のため）
+        original_failsafe = pag.FAILSAFE
+        pag.FAILSAFE = False
+
         try:
             title = self.title_var.get().strip()
             save_folder = self.save_folder_var.get().strip()
@@ -981,7 +985,8 @@ class KindleScreenshotGUI:
             self.log("\nフルスクリーンモードに切り替え中...")
             pag.press('f11')
             sc_w, sc_h = pag.size()
-            pag.moveTo(sc_w - 200, sc_h - 1)
+            # マウスを画面右下の安全な位置に移動（フェイルセーフ回避）
+            pag.moveTo(sc_w - 200, sc_h - 100)
             time.sleep(2)
 
             # 座標の取得（保存された座標を使用するか、新たに選択するか）
@@ -1088,6 +1093,8 @@ class KindleScreenshotGUI:
             messagebox.showerror("エラー", f"エラーが発生しました:\n{e}")
 
         finally:
+            # PyAutoGUIのフェイルセーフを元に戻す
+            pag.FAILSAFE = original_failsafe
             # UIをリセット
             self.root.after(0, self.reset_ui)
 
