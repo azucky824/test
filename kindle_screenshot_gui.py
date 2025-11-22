@@ -580,24 +580,24 @@ class KindleScreenshotGUI:
     def __init__(self, root):
         self.root = root
         self.root.title("Kindle Screenshot Automator")
-        self.root.geometry("900x750")
+        self.root.geometry("750x650")
         self.root.resizable(True, True)
-        self.root.minsize(900, 750)
+        self.root.minsize(750, 650)
 
         # モダンなカラーパレット
         self.colors = {
-            'bg': '#f5f7fa',           # 背景 - 明るいグレー
-            'primary': '#4a90e2',      # プライマリー - 青
-            'primary_dark': '#357abd', # プライマリー濃い
-            'secondary': '#50c878',    # セカンダリー - 緑
-            'accent': '#ff6b6b',       # アクセント - 赤
-            'card': '#ffffff',         # カード背景 - 白
-            'text_dark': '#2c3e50',    # テキスト濃い
-            'text_light': '#7f8c8d',   # テキスト薄い
-            'border': '#e1e8ed',       # ボーダー
-            'success': '#27ae60',      # 成功
-            'warning': '#f39c12',      # 警告
-            'error': '#e74c3c'         # エラー
+            'bg': '#f5f7fa',
+            'primary': '#4a90e2',
+            'primary_dark': '#357abd',
+            'secondary': '#50c878',
+            'accent': '#ff6b6b',
+            'card': '#ffffff',
+            'text_dark': '#2c3e50',
+            'text_light': '#7f8c8d',
+            'border': '#e1e8ed',
+            'success': '#27ae60',
+            'warning': '#f39c12',
+            'error': '#e74c3c'
         }
 
         self.root.configure(bg=self.colors['bg'])
@@ -625,31 +625,31 @@ class KindleScreenshotGUI:
         style.configure('Title.TLabel',
                        background=self.colors['bg'],
                        foreground=self.colors['primary'],
-                       font=('Segoe UI', 24, 'bold'))
+                       font=('Segoe UI', 18, 'bold'))
 
         style.configure('Subtitle.TLabel',
-                       background=self.colors['card'],
-                       foreground=self.colors['text_dark'],
-                       font=('Segoe UI', 11, 'bold'))
+                       background=self.colors['bg'],
+                       foreground=self.colors['text_light'],
+                       font=('Segoe UI', 9))
 
-        style.configure('Normal.TLabel',
+        style.configure('Label.TLabel',
                        background=self.colors['card'],
                        foreground=self.colors['text_dark'],
-                       font=('Segoe UI', 10))
+                       font=('Segoe UI', 9))
 
         style.configure('Info.TLabel',
                        background=self.colors['card'],
                        foreground=self.colors['primary'],
-                       font=('Segoe UI', 9))
+                       font=('Segoe UI', 8))
 
         # ボタンスタイル
         style.configure('Primary.TButton',
                        background=self.colors['primary'],
                        foreground='white',
-                       font=('Segoe UI', 11, 'bold'),
+                       font=('Segoe UI', 10, 'bold'),
                        borderwidth=0,
                        focuscolor='none',
-                       padding=(20, 10))
+                       padding=(15, 8))
 
         style.map('Primary.TButton',
                  background=[('active', self.colors['primary_dark']),
@@ -658,151 +658,132 @@ class KindleScreenshotGUI:
         style.configure('Stop.TButton',
                        background=self.colors['accent'],
                        foreground='white',
-                       font=('Segoe UI', 11, 'bold'),
+                       font=('Segoe UI', 10, 'bold'),
                        borderwidth=0,
                        focuscolor='none',
-                       padding=(20, 10))
+                       padding=(15, 8))
 
         style.map('Stop.TButton',
                  background=[('active', '#e55555'),
                            ('disabled', self.colors['border'])])
 
-        # エントリスタイル
-        style.configure('Custom.TEntry',
-                       fieldbackground='white',
-                       borderwidth=1,
-                       relief='solid')
-
-        # チェックボタンスタイル
-        style.configure('Custom.TCheckbutton',
-                       background=self.colors['card'],
-                       foreground=self.colors['text_dark'],
-                       font=('Segoe UI', 10))
-
-        # コンボボックススタイル
-        style.configure('Custom.TCombobox',
-                       fieldbackground='white',
-                       background='white')
+        style.configure('Small.TButton',
+                       font=('Segoe UI', 8),
+                       padding=(8, 3))
 
     def setup_ui(self):
         """UIを構築する"""
         # メインフレーム
-        main_frame = ttk.Frame(self.root, style='BG.TFrame', padding="20")
+        main_frame = ttk.Frame(self.root, style='BG.TFrame', padding="15")
         main_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
         self.root.columnconfigure(0, weight=1)
         self.root.rowconfigure(0, weight=1)
         main_frame.columnconfigure(0, weight=1)
+        main_frame.rowconfigure(4, weight=1)
 
         # ヘッダー
         header_frame = ttk.Frame(main_frame, style='BG.TFrame')
-        header_frame.grid(row=0, column=0, sticky=(tk.W, tk.E), pady=(0, 20))
+        header_frame.grid(row=0, column=0, sticky=(tk.W, tk.E), pady=(0, 12))
 
         title_label = ttk.Label(header_frame, text="Kindle Screenshot Automator",
                                style='Title.TLabel')
         title_label.pack(side=tk.LEFT)
 
-        subtitle_label = ttk.Label(header_frame,
-                                   text="自動スクリーンショット & PDF生成",
-                                   font=('Segoe UI', 11),
-                                   foreground=self.colors['text_light'],
-                                   background=self.colors['bg'])
-        subtitle_label.pack(side=tk.LEFT, padx=(15, 0))
+        subtitle_label = ttk.Label(header_frame, text="自動スクリーンショット & PDF生成",
+                                   style='Subtitle.TLabel')
+        subtitle_label.pack(side=tk.LEFT, padx=(10, 0))
 
         # 設定カード
-        settings_card = ttk.Frame(main_frame, style='Card.TFrame', padding="20")
-        settings_card.grid(row=1, column=0, sticky=(tk.W, tk.E), pady=(0, 15))
+        settings_card = ttk.Frame(main_frame, style='Card.TFrame', padding="12")
+        settings_card.grid(row=1, column=0, sticky=(tk.W, tk.E), pady=(0, 10))
         settings_card.columnconfigure(1, weight=1)
 
-        # カードタイトル
-        card_title = ttk.Label(settings_card, text="基本設定",
-                              style='Subtitle.TLabel')
-        card_title.grid(row=0, column=0, columnspan=4, sticky=tk.W, pady=(0, 15))
-
         # 本のタイトル
-        ttk.Label(settings_card, text="本のタイトル", style='Normal.TLabel').grid(
-            row=1, column=0, sticky=tk.W, pady=8)
+        title_row = ttk.Frame(settings_card, style='Card.TFrame')
+        title_row.grid(row=0, column=0, columnspan=4, sticky=(tk.W, tk.E), pady=(0, 8))
+        title_row.columnconfigure(1, weight=1)
+
+        ttk.Label(title_row, text="本のタイトル", style='Label.TLabel').grid(
+            row=0, column=0, sticky=tk.W, padx=(0, 8))
         self.title_var = tk.StringVar()
-        self.title_entry = ttk.Entry(settings_card, textvariable=self.title_var,
-                                     font=('Segoe UI', 10), width=50)
-        self.title_entry.grid(row=1, column=1, columnspan=3, sticky=(tk.W, tk.E),
-                             pady=8, padx=(10, 0))
+        self.title_entry = ttk.Entry(title_row, textvariable=self.title_var,
+                                     font=('Segoe UI', 9))
+        self.title_entry.grid(row=0, column=1, sticky=(tk.W, tk.E), padx=(0, 5))
+
+        refresh_btn = ttk.Button(title_row, text="🔄", command=self.auto_detect_kindle,
+                                style='Small.TButton', width=3)
+        refresh_btn.grid(row=0, column=2)
 
         # 保存先フォルダ
-        ttk.Label(settings_card, text="保存先フォルダ", style='Normal.TLabel').grid(
-            row=2, column=0, sticky=tk.W, pady=8)
+        folder_row = ttk.Frame(settings_card, style='Card.TFrame')
+        folder_row.grid(row=1, column=0, columnspan=4, sticky=(tk.W, tk.E))
+        folder_row.columnconfigure(1, weight=1)
+
+        ttk.Label(folder_row, text="保存先", style='Label.TLabel').grid(
+            row=0, column=0, sticky=tk.W, padx=(0, 8))
         self.save_folder_var = tk.StringVar(value=r'C:\Users\azuck\Downloads')
-        self.folder_entry = ttk.Entry(settings_card, textvariable=self.save_folder_var,
-                                      font=('Segoe UI', 10), width=40)
-        self.folder_entry.grid(row=2, column=1, sticky=(tk.W, tk.E), pady=8, padx=(10, 5))
+        self.folder_entry = ttk.Entry(folder_row, textvariable=self.save_folder_var,
+                                      font=('Segoe UI', 9))
+        self.folder_entry.grid(row=0, column=1, sticky=(tk.W, tk.E), padx=(0, 5))
 
-        browse_btn = ttk.Button(settings_card, text="参照", command=self.browse_folder)
-        browse_btn.grid(row=2, column=2, pady=8, padx=(5, 5))
-
-        open_folder_btn = ttk.Button(settings_card, text="開く", command=self.open_folder)
-        open_folder_btn.grid(row=2, column=3, pady=8, padx=(5, 0))
+        ttk.Button(folder_row, text="参照", command=self.browse_folder,
+                  style='Small.TButton').grid(row=0, column=2, padx=(0, 3))
+        ttk.Button(folder_row, text="開く", command=self.open_folder,
+                  style='Small.TButton').grid(row=0, column=3)
 
         # オプションカード
-        options_card = ttk.Frame(main_frame, style='Card.TFrame', padding="20")
-        options_card.grid(row=2, column=0, sticky=(tk.W, tk.E), pady=(0, 15))
-
-        # カードタイトル
-        card_title2 = ttk.Label(options_card, text="オプション設定",
-                               style='Subtitle.TLabel')
-        card_title2.grid(row=0, column=0, columnspan=4, sticky=tk.W, pady=(0, 15))
+        options_card = ttk.Frame(main_frame, style='Card.TFrame', padding="12")
+        options_card.grid(row=2, column=0, sticky=(tk.W, tk.E), pady=(0, 10))
 
         # オプション行1
+        opt_frame1 = ttk.Frame(options_card, style='Card.TFrame')
+        opt_frame1.pack(fill=tk.X, pady=(0, 6))
+
         self.create_pdf_var = tk.BooleanVar(value=True)
-        ttk.Checkbutton(options_card, text="PDF生成",
-                       variable=self.create_pdf_var,
-                       style='Custom.TCheckbutton').grid(row=1, column=0, padx=(0, 20),
-                                                         pady=8, sticky=tk.W)
+        ttk.Checkbutton(opt_frame1, text="PDF生成", variable=self.create_pdf_var,
+                       style='Label.TLabel').pack(side=tk.LEFT, padx=(0, 15))
 
         self.delete_images_var = tk.BooleanVar(value=True)
-        ttk.Checkbutton(options_card, text="画像削除",
-                       variable=self.delete_images_var,
-                       style='Custom.TCheckbutton').grid(row=1, column=1, padx=(0, 20),
-                                                         pady=8, sticky=tk.W)
+        ttk.Checkbutton(opt_frame1, text="画像削除", variable=self.delete_images_var,
+                       style='Label.TLabel').pack(side=tk.LEFT, padx=(0, 15))
 
         self.use_saved_coords_var = tk.BooleanVar(value=False)
-        ttk.Checkbutton(options_card, text="前回の座標を使用",
+        ttk.Checkbutton(opt_frame1, text="前回の座標を使用",
                        variable=self.use_saved_coords_var,
-                       style='Custom.TCheckbutton').grid(row=1, column=2, padx=(0, 20),
-                                                         pady=8, sticky=tk.W)
+                       style='Label.TLabel').pack(side=tk.LEFT)
 
         # オプション行2
-        ttk.Label(options_card, text="ページ送り方向", style='Normal.TLabel').grid(
-            row=2, column=0, sticky=tk.W, pady=8)
+        opt_frame2 = ttk.Frame(options_card, style='Card.TFrame')
+        opt_frame2.pack(fill=tk.X, pady=(0, 6))
+
+        ttk.Label(opt_frame2, text="ページ送り", style='Label.TLabel').pack(side=tk.LEFT, padx=(0, 5))
         self.page_direction_var = tk.StringVar(value="left")
-        direction_combo = ttk.Combobox(options_card, textvariable=self.page_direction_var,
-                                      values=["left", "right"], width=10, state="readonly",
-                                      style='Custom.TCombobox')
-        direction_combo.grid(row=2, column=1, sticky=tk.W, pady=8, padx=(0, 20))
+        direction_combo = ttk.Combobox(opt_frame2, textvariable=self.page_direction_var,
+                                      values=["left", "right"], width=8, state="readonly",
+                                      font=('Segoe UI', 8))
+        direction_combo.pack(side=tk.LEFT, padx=(0, 15))
 
-        ttk.Label(options_card, text="待機時間(秒)", style='Normal.TLabel').grid(
-            row=2, column=2, sticky=tk.W, pady=8)
+        ttk.Label(opt_frame2, text="待機時間", style='Label.TLabel').pack(side=tk.LEFT, padx=(0, 5))
         self.wait_sec_var = tk.DoubleVar(value=0.15)
-        wait_spin = ttk.Spinbox(options_card, from_=0.1, to=2.0, increment=0.05,
-                               textvariable=self.wait_sec_var, width=10)
-        wait_spin.grid(row=2, column=3, sticky=tk.W, pady=8)
+        wait_spin = ttk.Spinbox(opt_frame2, from_=0.1, to=2.0, increment=0.05,
+                               textvariable=self.wait_sec_var, width=6,
+                               font=('Segoe UI', 8))
+        wait_spin.pack(side=tk.LEFT)
+        ttk.Label(opt_frame2, text="秒", style='Label.TLabel').pack(side=tk.LEFT, padx=(2, 0))
 
-        # 範囲選択の説明
+        # 情報
         info_frame = ttk.Frame(options_card, style='Card.TFrame')
-        info_frame.grid(row=3, column=0, columnspan=4, sticky=(tk.W, tk.E), pady=(10, 0))
+        info_frame.pack(fill=tk.X)
 
-        info_icon = ttk.Label(info_frame, text="ℹ",
-                            font=('Segoe UI', 14),
-                            foreground=self.colors['primary'],
-                            background=self.colors['card'])
-        info_icon.pack(side=tk.LEFT, padx=(0, 8))
-
-        info_label = ttk.Label(info_frame,
-                              text="フルスクリーン後、マウスドラッグで範囲を選択できます（ルーペ機能付き）",
-                              style='Info.TLabel')
-        info_label.pack(side=tk.LEFT)
+        ttk.Label(info_frame, text="ℹ", font=('Segoe UI', 11),
+                 foreground=self.colors['primary'],
+                 background=self.colors['card']).pack(side=tk.LEFT, padx=(0, 5))
+        ttk.Label(info_frame, text="フルスクリーン後、範囲をドラッグ選択（ルーペ付き）",
+                 style='Info.TLabel').pack(side=tk.LEFT)
 
         # ボタンカード
-        button_card = ttk.Frame(main_frame, style='Card.TFrame', padding="20")
-        button_card.grid(row=3, column=0, sticky=(tk.W, tk.E), pady=(0, 15))
+        button_card = ttk.Frame(main_frame, style='Card.TFrame', padding="12")
+        button_card.grid(row=3, column=0, sticky=(tk.W, tk.E), pady=(0, 10))
 
         button_frame = ttk.Frame(button_card, style='Card.TFrame')
         button_frame.pack(expand=True)
@@ -810,49 +791,44 @@ class KindleScreenshotGUI:
         self.start_button = ttk.Button(button_frame, text="▶ キャプチャ開始",
                                       command=self.start_capture,
                                       style='Primary.TButton')
-        self.start_button.pack(side=tk.LEFT, padx=5)
+        self.start_button.pack(side=tk.LEFT, padx=3)
 
         self.stop_button = ttk.Button(button_frame, text="⏹ 停止",
                                      command=self.stop_capture,
                                      style='Stop.TButton',
                                      state=tk.DISABLED)
-        self.stop_button.pack(side=tk.LEFT, padx=5)
+        self.stop_button.pack(side=tk.LEFT, padx=3)
 
         # ステータスカード
-        status_card = ttk.Frame(main_frame, style='Card.TFrame', padding="15")
-        status_card.grid(row=4, column=0, sticky=(tk.W, tk.E), pady=(0, 15))
-        status_card.columnconfigure(1, weight=1)
+        status_card = ttk.Frame(main_frame, style='Card.TFrame', padding="10")
+        status_card.grid(row=4, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), pady=(0, 0))
+        status_card.columnconfigure(0, weight=1)
+        status_card.rowconfigure(2, weight=1)
 
-        ttk.Label(status_card, text="ステータス:", style='Normal.TLabel').grid(
-            row=0, column=0, sticky=tk.W, padx=(0, 10))
-        self.status_label = ttk.Label(status_card, text="待機中",
-                                     font=('Segoe UI', 10, 'bold'),
+        # ステータス行
+        status_row = ttk.Frame(status_card, style='Card.TFrame')
+        status_row.grid(row=0, column=0, sticky=(tk.W, tk.E), pady=(0, 6))
+
+        ttk.Label(status_row, text="ステータス:", style='Label.TLabel').pack(side=tk.LEFT, padx=(0, 8))
+        self.status_label = ttk.Label(status_row, text="待機中",
+                                     font=('Segoe UI', 9, 'bold'),
                                      foreground=self.colors['primary'],
                                      background=self.colors['card'])
-        self.status_label.grid(row=0, column=1, sticky=tk.W)
+        self.status_label.pack(side=tk.LEFT)
 
-        self.progress_bar = ttk.Progressbar(status_card, mode='indeterminate', length=500)
-        self.progress_bar.grid(row=1, column=0, columnspan=2, sticky=(tk.W, tk.E),
-                              pady=(10, 0))
+        # プログレスバー
+        self.progress_bar = ttk.Progressbar(status_card, mode='indeterminate')
+        self.progress_bar.grid(row=1, column=0, sticky=(tk.W, tk.E), pady=(0, 8))
 
-        # ログカード
-        log_card = ttk.Frame(main_frame, style='Card.TFrame', padding="15")
-        log_card.grid(row=5, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), pady=(0, 0))
-        log_card.columnconfigure(0, weight=1)
-        log_card.rowconfigure(1, weight=1)
-        main_frame.rowconfigure(5, weight=1)
-
-        log_header = ttk.Label(log_card, text="実行ログ", style='Subtitle.TLabel')
-        log_header.grid(row=0, column=0, sticky=tk.W, pady=(0, 10))
-
-        self.log_text = scrolledtext.ScrolledText(log_card, width=80, height=12,
+        # ログエリア
+        self.log_text = scrolledtext.ScrolledText(status_card, height=10,
                                                  wrap=tk.WORD,
-                                                 font=('Consolas', 9),
+                                                 font=('Consolas', 8),
                                                  bg='#f8f9fa',
                                                  fg=self.colors['text_dark'],
                                                  relief='flat',
                                                  borderwidth=1)
-        self.log_text.grid(row=1, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        self.log_text.grid(row=2, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
         self.log_text.config(state=tk.DISABLED)
 
     def log(self, message):
