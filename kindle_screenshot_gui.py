@@ -475,105 +475,6 @@ def wait_for_page_change(old_img, left, right, top=None, bottom=None, timeout=5.
             return None
 
 
-def perform_ocr_on_pdf(pdf_path, log_callback):
-    """PDFにOCRを実行して検索可能なPDFを生成する（EasyOCR使用）
-
-    Args:
-        pdf_path: 入力PDFファイルのパス
-        log_callback: ログ出力用のコールバック関数
-
-    Returns:
-        成功時: OCR処理後のPDFパス、失敗時: None
-    """
-    try:
-        import easyocr
-        import fitz  # PyMuPDF
-
-        log_callback("\nOCR処理を開始...")
-        log_callback("⚠ 初回実行時はモデルのダウンロードで時間がかかります")
-
-        # EasyOCR Readerを初期化（日本語と英語）
-        log_callback("OCRエンジンを初期化中（日本語+英語）...")
-        reader = easyocr.Reader(['ja', 'en'], gpu=False)
-
-        # PDFを開く
-        doc = fitz.open(pdf_path)
-        log_callback(f"PDF読み込み完了: {len(doc)} ページ")
-
-        # 各ページにOCRを実行してテキストレイヤーを追加
-        for page_num in range(len(doc)):
-            log_callback(f"ページ {page_num + 1}/{len(doc)} を処理中...")
-
-            page = doc[page_num]
-
-            # ページを画像として取得
-            pix = page.get_pixmap(matrix=fitz.Matrix(2, 2))  # 2倍解像度
-            img_data = pix.tobytes("png")
-
-            # 画像をnumpy配列に変換
-            from PIL import Image as PILImage
-            import io
-            pil_img = PILImage.open(io.BytesIO(img_data))
-            img_array = np.array(pil_img)
-
-            # OCR実行
-            results = reader.readtext(img_array, detail=1)
-
-            # テキストレイヤーを追加
-            for (bbox, text, conf) in results:
-                # 座標を取得（EasyOCRの座標は2倍解像度なので元に戻す）
-                x_min = min(bbox[0][0], bbox[1][0], bbox[2][0], bbox[3][0]) / 2
-                y_min = min(bbox[0][1], bbox[1][1], bbox[2][1], bbox[3][1]) / 2
-                x_max = max(bbox[0][0], bbox[1][0], bbox[2][0], bbox[3][0]) / 2
-                y_max = max(bbox[0][1], bbox[1][1], bbox[2][1], bbox[3][1]) / 2
-
-                # PDFの座標系に変換（左下原点）
-                rect = fitz.Rect(x_min, page.rect.height - y_max, x_max, page.rect.height - y_min)
-
-                # 透明テキストを追加（信頼度が0.3以上のもののみ）
-                if conf >= 0.3:
-                    page.insert_text(rect.tl, text, fontsize=10, color=(1, 1, 1), overlay=False)
-
-        # 一時ファイルに保存
-        temp_output = pdf_path.replace('.pdf', '_ocr_temp.pdf')
-        doc.save(temp_output)
-        doc.close()
-
-        # 元のファイルを置き換え
-        if osp.exists(temp_output):
-            if osp.exists(pdf_path):
-                os.remove(pdf_path)
-            os.rename(temp_output, pdf_path)
-
-            file_size = osp.getsize(pdf_path) / (1024 * 1024)
-            log_callback(f"✓ OCR処理完了")
-            log_callback(f"  - 検索可能なPDF: {pdf_path}")
-            log_callback(f"  - ファイルサイズ: {file_size:.2f} MB")
-            return pdf_path
-        else:
-            log_callback("⚠ OCR処理に失敗しました")
-            return None
-
-    except ImportError as e:
-        log_callback(f"⚠ 必要なライブラリがインストールされていません: {e}")
-        log_callback("  インストール方法:")
-        log_callback("  pip install easyocr pymupdf")
-        return None
-    except Exception as e:
-        log_callback(f"⚠ OCR処理中にエラーが発生: {e}")
-        import traceback
-        log_callback(traceback.format_exc())
-
-        # 一時ファイルをクリーンアップ
-        temp_output = pdf_path.replace('.pdf', '_ocr_temp.pdf')
-        if osp.exists(temp_output):
-            try:
-                os.remove(temp_output)
-            except:
-                pass
-        return None
-
-
 def convert_images_to_pdf(save_dir, title, log_callback, delete_images=False):
     """PNG画像をPDFに変換する
 
@@ -604,7 +505,7 @@ def convert_images_to_pdf(save_dir, title, log_callback, delete_images=False):
         png_files = [osp.join(save_dir, f) for f in png_files]
 
         if not png_files:
-            log_callback("⚠ PNG画像が見つかりませんでした")
+            log_callback("PNG画像が見つかりませんでした")
             log_callback(f"確認: ディレクトリ '{save_dir}' にファイルが存在するか確認してください")
             # ディレクトリの内容を確認
             if osp.exists(save_dir):
@@ -615,7 +516,7 @@ def convert_images_to_pdf(save_dir, title, log_callback, delete_images=False):
                 if len(all_files) > 10:
                     log_callback(f"  ... 他 {len(all_files) - 10}個")
             else:
-                log_callback(f"⚠ ディレクトリが存在しません: {save_dir}")
+                log_callback(f"ディレクトリが存在しません: {save_dir}")
             return None
 
         images = []
@@ -651,7 +552,7 @@ def convert_images_to_pdf(save_dir, title, log_callback, delete_images=False):
             shutil.move(temp_pdf_path, final_pdf_path)
 
             file_size = osp.getsize(final_pdf_path) / (1024 * 1024)
-            log_callback(f"✓ PDF生成完了: {title}.pdf")
+            log_callback(f"PDF生成完了: {title}.pdf")
             log_callback(f"  - 保存先: {final_pdf_path}")
             log_callback(f"  - ページ数: {len(images)}")
             log_callback(f"  - ファイルサイズ: {file_size:.2f} MB")
@@ -662,14 +563,14 @@ def convert_images_to_pdf(save_dir, title, log_callback, delete_images=False):
                 try:
                     import shutil
                     shutil.rmtree(save_dir)
-                    log_callback(f"✓ フォルダを削除しました: {save_dir}")
+                    log_callback(f"フォルダを削除しました: {save_dir}")
                 except Exception as e:
-                    log_callback(f"  ⚠ フォルダ削除失敗: {e}")
+                    log_callback(f"フォルダ削除失敗: {e}")
 
             return final_pdf_path
 
     except Exception as e:
-        log_callback(f"⚠ PDF生成に失敗: {e}")
+        log_callback(f"PDF生成に失敗: {e}")
         import traceback
         log_callback(traceback.format_exc())
         return None
@@ -678,112 +579,277 @@ def convert_images_to_pdf(save_dir, title, log_callback, delete_images=False):
 class KindleScreenshotGUI:
     def __init__(self, root):
         self.root = root
-        self.root.title("Kindle Screenshot Tool")
-        self.root.geometry("800x800")
+        self.root.title("Kindle Screenshot Automator")
+        self.root.geometry("900x750")
         self.root.resizable(True, True)
-        self.root.minsize(800, 800)
+        self.root.minsize(900, 750)
 
+        # モダンなカラーパレット
+        self.colors = {
+            'bg': '#f5f7fa',           # 背景 - 明るいグレー
+            'primary': '#4a90e2',      # プライマリー - 青
+            'primary_dark': '#357abd', # プライマリー濃い
+            'secondary': '#50c878',    # セカンダリー - 緑
+            'accent': '#ff6b6b',       # アクセント - 赤
+            'card': '#ffffff',         # カード背景 - 白
+            'text_dark': '#2c3e50',    # テキスト濃い
+            'text_light': '#7f8c8d',   # テキスト薄い
+            'border': '#e1e8ed',       # ボーダー
+            'success': '#27ae60',      # 成功
+            'warning': '#f39c12',      # 警告
+            'error': '#e74c3c'         # エラー
+        }
+
+        self.root.configure(bg=self.colors['bg'])
         self.is_capturing = False
         self.capture_thread = None
 
+        self.setup_styles()
         self.setup_ui()
         self.auto_detect_kindle()
+
+    def setup_styles(self):
+        """カスタムスタイルを設定"""
+        style = ttk.Style()
+        style.theme_use('clam')
+
+        # フレームスタイル
+        style.configure('Card.TFrame',
+                       background=self.colors['card'],
+                       relief='flat')
+
+        style.configure('BG.TFrame',
+                       background=self.colors['bg'])
+
+        # ラベルスタイル
+        style.configure('Title.TLabel',
+                       background=self.colors['bg'],
+                       foreground=self.colors['primary'],
+                       font=('Segoe UI', 24, 'bold'))
+
+        style.configure('Subtitle.TLabel',
+                       background=self.colors['card'],
+                       foreground=self.colors['text_dark'],
+                       font=('Segoe UI', 11, 'bold'))
+
+        style.configure('Normal.TLabel',
+                       background=self.colors['card'],
+                       foreground=self.colors['text_dark'],
+                       font=('Segoe UI', 10))
+
+        style.configure('Info.TLabel',
+                       background=self.colors['card'],
+                       foreground=self.colors['primary'],
+                       font=('Segoe UI', 9))
+
+        # ボタンスタイル
+        style.configure('Primary.TButton',
+                       background=self.colors['primary'],
+                       foreground='white',
+                       font=('Segoe UI', 11, 'bold'),
+                       borderwidth=0,
+                       focuscolor='none',
+                       padding=(20, 10))
+
+        style.map('Primary.TButton',
+                 background=[('active', self.colors['primary_dark']),
+                           ('disabled', self.colors['border'])])
+
+        style.configure('Stop.TButton',
+                       background=self.colors['accent'],
+                       foreground='white',
+                       font=('Segoe UI', 11, 'bold'),
+                       borderwidth=0,
+                       focuscolor='none',
+                       padding=(20, 10))
+
+        style.map('Stop.TButton',
+                 background=[('active', '#e55555'),
+                           ('disabled', self.colors['border'])])
+
+        # エントリスタイル
+        style.configure('Custom.TEntry',
+                       fieldbackground='white',
+                       borderwidth=1,
+                       relief='solid')
+
+        # チェックボタンスタイル
+        style.configure('Custom.TCheckbutton',
+                       background=self.colors['card'],
+                       foreground=self.colors['text_dark'],
+                       font=('Segoe UI', 10))
+
+        # コンボボックススタイル
+        style.configure('Custom.TCombobox',
+                       fieldbackground='white',
+                       background='white')
 
     def setup_ui(self):
         """UIを構築する"""
         # メインフレーム
-        main_frame = ttk.Frame(self.root, padding="10")
+        main_frame = ttk.Frame(self.root, style='BG.TFrame', padding="20")
         main_frame.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        self.root.columnconfigure(0, weight=1)
+        self.root.rowconfigure(0, weight=1)
+        main_frame.columnconfigure(0, weight=1)
 
-        # タイトル
-        title_label = ttk.Label(main_frame, text="Kindle Screenshot Tool", font=('Arial', 16, 'bold'))
-        title_label.grid(row=0, column=0, columnspan=3, pady=(0, 10))
+        # ヘッダー
+        header_frame = ttk.Frame(main_frame, style='BG.TFrame')
+        header_frame.grid(row=0, column=0, sticky=(tk.W, tk.E), pady=(0, 20))
 
-        # 設定セクション
-        settings_frame = ttk.LabelFrame(main_frame, text="設定", padding="10")
-        settings_frame.grid(row=1, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=5)
+        title_label = ttk.Label(header_frame, text="Kindle Screenshot Automator",
+                               style='Title.TLabel')
+        title_label.pack(side=tk.LEFT)
+
+        subtitle_label = ttk.Label(header_frame,
+                                   text="自動スクリーンショット & PDF生成",
+                                   font=('Segoe UI', 11),
+                                   foreground=self.colors['text_light'],
+                                   background=self.colors['bg'])
+        subtitle_label.pack(side=tk.LEFT, padx=(15, 0))
+
+        # 設定カード
+        settings_card = ttk.Frame(main_frame, style='Card.TFrame', padding="20")
+        settings_card.grid(row=1, column=0, sticky=(tk.W, tk.E), pady=(0, 15))
+        settings_card.columnconfigure(1, weight=1)
+
+        # カードタイトル
+        card_title = ttk.Label(settings_card, text="基本設定",
+                              style='Subtitle.TLabel')
+        card_title.grid(row=0, column=0, columnspan=3, sticky=tk.W, pady=(0, 15))
 
         # 本のタイトル
-        ttk.Label(settings_frame, text="本のタイトル:").grid(row=0, column=0, sticky=tk.W, pady=5)
+        ttk.Label(settings_card, text="本のタイトル", style='Normal.TLabel').grid(
+            row=1, column=0, sticky=tk.W, pady=8)
         self.title_var = tk.StringVar()
-        self.title_entry = ttk.Entry(settings_frame, textvariable=self.title_var, width=50)
-        self.title_entry.grid(row=0, column=1, columnspan=2, sticky=(tk.W, tk.E), pady=5, padx=5)
+        self.title_entry = ttk.Entry(settings_card, textvariable=self.title_var,
+                                     font=('Segoe UI', 10), width=50)
+        self.title_entry.grid(row=1, column=1, columnspan=2, sticky=(tk.W, tk.E),
+                             pady=8, padx=(10, 0))
 
         # 保存先フォルダ
-        ttk.Label(settings_frame, text="保存先:").grid(row=1, column=0, sticky=tk.W, pady=5)
+        ttk.Label(settings_card, text="保存先フォルダ", style='Normal.TLabel').grid(
+            row=2, column=0, sticky=tk.W, pady=8)
         self.save_folder_var = tk.StringVar(value=r'C:\Users\azuck\Downloads')
-        self.folder_entry = ttk.Entry(settings_frame, textvariable=self.save_folder_var, width=40)
-        self.folder_entry.grid(row=1, column=1, sticky=(tk.W, tk.E), pady=5, padx=5)
-        ttk.Button(settings_frame, text="参照", command=self.browse_folder).grid(row=1, column=2, pady=5, padx=5)
+        self.folder_entry = ttk.Entry(settings_card, textvariable=self.save_folder_var,
+                                      font=('Segoe UI', 10), width=40)
+        self.folder_entry.grid(row=2, column=1, sticky=(tk.W, tk.E), pady=8, padx=(10, 5))
 
-        # オプション
-        options_frame = ttk.Frame(settings_frame)
-        options_frame.grid(row=2, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=5)
+        browse_btn = ttk.Button(settings_card, text="参照", command=self.browse_folder)
+        browse_btn.grid(row=2, column=2, pady=8, padx=(5, 0))
 
-        # 1行目のオプション
+        # オプションカード
+        options_card = ttk.Frame(main_frame, style='Card.TFrame', padding="20")
+        options_card.grid(row=2, column=0, sticky=(tk.W, tk.E), pady=(0, 15))
+
+        # カードタイトル
+        card_title2 = ttk.Label(options_card, text="オプション設定",
+                               style='Subtitle.TLabel')
+        card_title2.grid(row=0, column=0, columnspan=4, sticky=tk.W, pady=(0, 15))
+
+        # オプション行1
         self.create_pdf_var = tk.BooleanVar(value=True)
-        ttk.Checkbutton(options_frame, text="PDF生成", variable=self.create_pdf_var).grid(row=0, column=0, padx=5, sticky=tk.W)
+        ttk.Checkbutton(options_card, text="PDF生成",
+                       variable=self.create_pdf_var,
+                       style='Custom.TCheckbutton').grid(row=1, column=0, padx=(0, 20),
+                                                         pady=8, sticky=tk.W)
 
         self.delete_images_var = tk.BooleanVar(value=True)
-        ttk.Checkbutton(options_frame, text="画像削除", variable=self.delete_images_var).grid(row=0, column=1, padx=5, sticky=tk.W)
-
-        self.enable_ocr_var = tk.BooleanVar(value=True)
-        ttk.Checkbutton(options_frame, text="OCR実行", variable=self.enable_ocr_var).grid(row=0, column=2, padx=5, sticky=tk.W)
-
-        # ページ送り方向
-        ttk.Label(options_frame, text="ページ送り:").grid(row=0, column=3, padx=(15, 5), sticky=tk.W)
-        self.page_direction_var = tk.StringVar(value="left")
-        direction_combo = ttk.Combobox(options_frame, textvariable=self.page_direction_var,
-                                      values=["left", "right"], width=8, state="readonly")
-        direction_combo.grid(row=0, column=4, padx=5, sticky=tk.W)
-
-        # 2行目のオプション
-        ttk.Label(options_frame, text="待機時間(秒):").grid(row=1, column=0, padx=5, pady=5, sticky=tk.W)
-        self.wait_sec_var = tk.DoubleVar(value=0.15)
-        wait_spin = ttk.Spinbox(options_frame, from_=0.1, to=2.0, increment=0.05,
-                                textvariable=self.wait_sec_var, width=8)
-        wait_spin.grid(row=1, column=1, padx=5, pady=5, sticky=tk.W)
-
-        # 範囲選択の説明と前回座標使用オプション
-        info_frame = ttk.Frame(settings_frame)
-        info_frame.grid(row=3, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=5)
-
-        info_label = ttk.Label(info_frame, text="💡 フルスクリーン後、マウスドラッグで範囲を選択できます",
-                              foreground="blue", font=('Arial', 9))
-        info_label.grid(row=0, column=0, padx=5, pady=5, sticky=tk.W)
+        ttk.Checkbutton(options_card, text="画像削除",
+                       variable=self.delete_images_var,
+                       style='Custom.TCheckbutton').grid(row=1, column=1, padx=(0, 20),
+                                                         pady=8, sticky=tk.W)
 
         self.use_saved_coords_var = tk.BooleanVar(value=False)
-        ttk.Checkbutton(info_frame, text="前回の座標を使用", variable=self.use_saved_coords_var).grid(row=0, column=1, padx=15, sticky=tk.W)
+        ttk.Checkbutton(options_card, text="前回の座標を使用",
+                       variable=self.use_saved_coords_var,
+                       style='Custom.TCheckbutton').grid(row=1, column=2, padx=(0, 20),
+                                                         pady=8, sticky=tk.W)
 
-        # ボタンフレーム
-        button_frame = ttk.Frame(main_frame)
-        button_frame.grid(row=2, column=0, columnspan=3, pady=10)
+        # オプション行2
+        ttk.Label(options_card, text="ページ送り方向", style='Normal.TLabel').grid(
+            row=2, column=0, sticky=tk.W, pady=8)
+        self.page_direction_var = tk.StringVar(value="left")
+        direction_combo = ttk.Combobox(options_card, textvariable=self.page_direction_var,
+                                      values=["left", "right"], width=10, state="readonly",
+                                      style='Custom.TCombobox')
+        direction_combo.grid(row=2, column=1, sticky=tk.W, pady=8, padx=(0, 20))
 
-        self.start_button = ttk.Button(button_frame, text="▶ キャプチャ開始", command=self.start_capture, width=20)
-        self.start_button.grid(row=0, column=0, padx=5)
+        ttk.Label(options_card, text="待機時間(秒)", style='Normal.TLabel').grid(
+            row=2, column=2, sticky=tk.W, pady=8)
+        self.wait_sec_var = tk.DoubleVar(value=0.15)
+        wait_spin = ttk.Spinbox(options_card, from_=0.1, to=2.0, increment=0.05,
+                               textvariable=self.wait_sec_var, width=10)
+        wait_spin.grid(row=2, column=3, sticky=tk.W, pady=8)
 
-        self.stop_button = ttk.Button(button_frame, text="⏹ 停止", command=self.stop_capture,
-                                      width=20, state=tk.DISABLED)
-        self.stop_button.grid(row=0, column=1, padx=5)
+        # 範囲選択の説明
+        info_frame = ttk.Frame(options_card, style='Card.TFrame')
+        info_frame.grid(row=3, column=0, columnspan=4, sticky=(tk.W, tk.E), pady=(10, 0))
 
-        # ステータス
-        status_frame = ttk.Frame(main_frame)
-        status_frame.grid(row=3, column=0, columnspan=3, sticky=(tk.W, tk.E), pady=5)
+        info_icon = ttk.Label(info_frame, text="ℹ",
+                            font=('Segoe UI', 14),
+                            foreground=self.colors['primary'],
+                            background=self.colors['card'])
+        info_icon.pack(side=tk.LEFT, padx=(0, 8))
 
-        ttk.Label(status_frame, text="ステータス:").grid(row=0, column=0, sticky=tk.W)
-        self.status_label = ttk.Label(status_frame, text="待機中", foreground="blue")
-        self.status_label.grid(row=0, column=1, sticky=tk.W, padx=5)
+        info_label = ttk.Label(info_frame,
+                              text="フルスクリーン後、マウスドラッグで範囲を選択できます（ルーペ機能付き）",
+                              style='Info.TLabel')
+        info_label.pack(side=tk.LEFT)
 
-        self.progress_var = tk.IntVar()
-        self.progress_bar = ttk.Progressbar(status_frame, mode='indeterminate', length=400)
-        self.progress_bar.grid(row=1, column=0, columnspan=2, sticky=(tk.W, tk.E), pady=5)
+        # ボタンカード
+        button_card = ttk.Frame(main_frame, style='Card.TFrame', padding="20")
+        button_card.grid(row=3, column=0, sticky=(tk.W, tk.E), pady=(0, 15))
 
-        # ログエリア
-        log_frame = ttk.LabelFrame(main_frame, text="ログ", padding="5")
-        log_frame.grid(row=4, column=0, columnspan=3, sticky=(tk.W, tk.E, tk.N, tk.S), pady=5)
+        button_frame = ttk.Frame(button_card, style='Card.TFrame')
+        button_frame.pack(expand=True)
 
-        self.log_text = scrolledtext.ScrolledText(log_frame, width=80, height=15, wrap=tk.WORD)
-        self.log_text.grid(row=0, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
+        self.start_button = ttk.Button(button_frame, text="▶ キャプチャ開始",
+                                      command=self.start_capture,
+                                      style='Primary.TButton')
+        self.start_button.pack(side=tk.LEFT, padx=5)
+
+        self.stop_button = ttk.Button(button_frame, text="⏹ 停止",
+                                     command=self.stop_capture,
+                                     style='Stop.TButton',
+                                     state=tk.DISABLED)
+        self.stop_button.pack(side=tk.LEFT, padx=5)
+
+        # ステータスカード
+        status_card = ttk.Frame(main_frame, style='Card.TFrame', padding="15")
+        status_card.grid(row=4, column=0, sticky=(tk.W, tk.E), pady=(0, 15))
+        status_card.columnconfigure(1, weight=1)
+
+        ttk.Label(status_card, text="ステータス:", style='Normal.TLabel').grid(
+            row=0, column=0, sticky=tk.W, padx=(0, 10))
+        self.status_label = ttk.Label(status_card, text="待機中",
+                                     font=('Segoe UI', 10, 'bold'),
+                                     foreground=self.colors['primary'],
+                                     background=self.colors['card'])
+        self.status_label.grid(row=0, column=1, sticky=tk.W)
+
+        self.progress_bar = ttk.Progressbar(status_card, mode='indeterminate', length=500)
+        self.progress_bar.grid(row=1, column=0, columnspan=2, sticky=(tk.W, tk.E),
+                              pady=(10, 0))
+
+        # ログカード
+        log_card = ttk.Frame(main_frame, style='Card.TFrame', padding="15")
+        log_card.grid(row=5, column=0, sticky=(tk.W, tk.E, tk.N, tk.S), pady=(0, 0))
+        log_card.columnconfigure(0, weight=1)
+        log_card.rowconfigure(1, weight=1)
+        main_frame.rowconfigure(5, weight=1)
+
+        log_header = ttk.Label(log_card, text="実行ログ", style='Subtitle.TLabel')
+        log_header.grid(row=0, column=0, sticky=tk.W, pady=(0, 10))
+
+        self.log_text = scrolledtext.ScrolledText(log_card, width=80, height=12,
+                                                 wrap=tk.WORD,
+                                                 font=('Consolas', 9),
+                                                 bg='#f8f9fa',
+                                                 fg=self.colors['text_dark'],
+                                                 relief='flat',
+                                                 borderwidth=1)
+        self.log_text.grid(row=1, column=0, sticky=(tk.W, tk.E, tk.N, tk.S))
         self.log_text.config(state=tk.DISABLED)
 
     def log(self, message):
@@ -807,12 +873,12 @@ class KindleScreenshotGUI:
             book_title = extract_book_title(window_title)
             if book_title:
                 self.title_var.set(book_title)
-                self.log(f"✓ Kindleを検出: {book_title}")
+                self.log(f"Kindleを検出: {book_title}")
             else:
-                self.log("⚠ Kindleを検出しましたが、タイトルを取得できませんでした")
+                self.log("Kindleを検出しましたが、タイトルを取得できませんでした")
                 self.title_var.set(datetime.datetime.now().strftime("%Y%m%d%H%M%S"))
         else:
-            self.log("⚠ Kindleが起動していません")
+            self.log("Kindleが起動していません")
             self.title_var.set(datetime.datetime.now().strftime("%Y%m%d%H%M%S"))
 
     def start_capture(self):
@@ -838,7 +904,8 @@ class KindleScreenshotGUI:
 
         self.start_button.config(state=tk.DISABLED)
         self.stop_button.config(state=tk.NORMAL)
-        self.status_label.config(text="キャプチャ中...", foreground="green")
+        self.status_label.config(text="キャプチャ中...",
+                                foreground=self.colors['success'])
         self.progress_bar.start()
 
         # 別スレッドでキャプチャを実行
@@ -849,8 +916,9 @@ class KindleScreenshotGUI:
         """キャプチャを停止"""
         global stop_capture
         stop_capture = True
-        self.log("\n⏹ 停止を要求しました...")
-        self.status_label.config(text="停止中...", foreground="orange")
+        self.log("\n停止を要求しました...")
+        self.status_label.config(text="停止中...",
+                                foreground=self.colors['warning'])
 
     def capture_process(self):
         """キャプチャ処理のメイン"""
@@ -862,7 +930,6 @@ class KindleScreenshotGUI:
             create_pdf = self.create_pdf_var.get()
             wait_sec = self.wait_sec_var.get()
             delete_images = self.delete_images_var.get()
-            enable_ocr = self.enable_ocr_var.get()
 
             self.log(f"\n{'='*60}")
             self.log(f"キャプチャ開始: {title}")
@@ -871,7 +938,7 @@ class KindleScreenshotGUI:
             # Kindleウィンドウを検索
             hwnd, _ = find_kindle_window_with_title()
             if hwnd is None:
-                self.log("❌ エラー: Kindleが見つかりません")
+                self.log("エラー: Kindleが見つかりません")
                 messagebox.showerror("エラー", "Kindleが見つかりません")
                 return
 
@@ -897,11 +964,11 @@ class KindleScreenshotGUI:
                 selected_coords = load_coordinates()
                 if selected_coords:
                     top, bottom, left, right = selected_coords
-                    self.log(f"✓ 保存された座標を使用:")
+                    self.log(f"保存された座標を使用:")
                     self.log(f"  上: {top}px, 下: {bottom}px, 左: {left}px, 右: {right}px")
                     self.log(f"  サイズ: {right-left}x{bottom-top}px")
                 else:
-                    self.log("⚠ 保存された座標が見つかりません。範囲選択を行います。")
+                    self.log("保存された座標が見つかりません。範囲選択を行います。")
 
             if selected_coords is None:
                 # 範囲選択を実行
@@ -911,18 +978,18 @@ class KindleScreenshotGUI:
                 selected_coords = select_area_interactively()
 
                 if stop_capture or selected_coords is None:
-                    self.log("\n⏹ 範囲選択がキャンセルされました")
+                    self.log("\n範囲選択がキャンセルされました")
                     pag.press('f11')
                     return
 
                 top, bottom, left, right = selected_coords
-                self.log(f"✓ 範囲選択完了:")
+                self.log(f"範囲選択完了:")
                 self.log(f"  上: {top}px, 下: {bottom}px, 左: {left}px, 右: {right}px")
                 self.log(f"  サイズ: {right-left}x{bottom-top}px")
 
                 # 座標を保存
                 if save_coordinates(top, bottom, left, right):
-                    self.log("✓ 座標を保存しました（次回使用可能）")
+                    self.log("座標を保存しました（次回使用可能）")
 
             # ページキャプチャ開始
             original_dir = os.getcwd()
@@ -944,13 +1011,14 @@ class KindleScreenshotGUI:
                 filename = str(page).zfill(3) + '.png'
 
                 # 固定座標でキャプチャ
-                new_img = wait_for_page_change(old_img, left, right, top, bottom, timeout=5.0, wait_sec=wait_sec)
+                new_img = wait_for_page_change(old_img, left, right, top, bottom,
+                                              timeout=5.0, wait_sec=wait_sec)
 
                 if new_img is None:
                     if stop_capture:
-                        self.log("\n⏹ ユーザーによって停止されました")
+                        self.log("\nユーザーによって停止されました")
                     else:
-                        self.log("\n✓ 最終ページに到達しました")
+                        self.log("\n最終ページに到達しました")
                     pag.press('f11')
                     break
 
@@ -967,22 +1035,20 @@ class KindleScreenshotGUI:
 
             # PDF生成
             if create_pdf and page > 1 and not stop_capture:
-                pdf_path = convert_images_to_pdf(save_dir, title, self.log, delete_images=delete_images)
-
-                # OCR処理
-                if pdf_path and self.enable_ocr_var.get():
-                    perform_ocr_on_pdf(pdf_path, self.log)
+                pdf_path = convert_images_to_pdf(save_dir, title, self.log,
+                                                delete_images=delete_images)
 
             if not stop_capture:
                 self.log(f"\n{'='*60}")
-                self.log(f"✓ 処理完了!")
+                self.log(f"処理完了!")
                 self.log(f"  合計ページ数: {page - 1}")
                 self.log(f"  保存先: {save_dir}")
                 self.log(f"{'='*60}\n")
-                messagebox.showinfo("完了", f"キャプチャが完了しました！\n\n合計ページ数: {page - 1}\n保存先: {save_dir}")
+                messagebox.showinfo("完了",
+                                  f"キャプチャが完了しました！\n\n合計ページ数: {page - 1}\n保存先: {save_dir}")
 
         except Exception as e:
-            self.log(f"\n❌ エラーが発生しました: {e}")
+            self.log(f"\nエラーが発生しました: {e}")
             import traceback
             self.log(traceback.format_exc())
             messagebox.showerror("エラー", f"エラーが発生しました:\n{e}")
@@ -996,7 +1062,8 @@ class KindleScreenshotGUI:
         self.is_capturing = False
         self.start_button.config(state=tk.NORMAL)
         self.stop_button.config(state=tk.DISABLED)
-        self.status_label.config(text="待機中", foreground="blue")
+        self.status_label.config(text="待機中",
+                                foreground=self.colors['primary'])
         self.progress_bar.stop()
 
 
