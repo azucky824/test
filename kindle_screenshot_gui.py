@@ -671,6 +671,16 @@ class KindleScreenshotGUI:
                        font=('Segoe UI', 8),
                        padding=(8, 3))
 
+        # チェックボタンスタイル
+        style.configure('Custom.TCheckbutton',
+                       background=self.colors['card'],
+                       foreground=self.colors['text_dark'],
+                       font=('Segoe UI', 9))
+
+        style.map('Custom.TCheckbutton',
+                 background=[('active', self.colors['card']),
+                           ('selected', self.colors['card'])])
+
     def setup_ui(self):
         """UIを構築する"""
         # メインフレーム
@@ -741,16 +751,16 @@ class KindleScreenshotGUI:
 
         self.create_pdf_var = tk.BooleanVar(value=True)
         ttk.Checkbutton(opt_frame1, text="PDF生成", variable=self.create_pdf_var,
-                       style='Label.TLabel').pack(side=tk.LEFT, padx=(0, 15))
+                       style='Custom.TCheckbutton').pack(side=tk.LEFT, padx=(0, 15))
 
         self.delete_images_var = tk.BooleanVar(value=True)
         ttk.Checkbutton(opt_frame1, text="画像削除", variable=self.delete_images_var,
-                       style='Label.TLabel').pack(side=tk.LEFT, padx=(0, 15))
+                       style='Custom.TCheckbutton').pack(side=tk.LEFT, padx=(0, 15))
 
         self.use_saved_coords_var = tk.BooleanVar(value=False)
         ttk.Checkbutton(opt_frame1, text="前回の座標を使用",
                        variable=self.use_saved_coords_var,
-                       style='Label.TLabel').pack(side=tk.LEFT)
+                       style='Custom.TCheckbutton').pack(side=tk.LEFT)
 
         # オプション行2
         opt_frame2 = ttk.Frame(options_card, style='Card.TFrame')
