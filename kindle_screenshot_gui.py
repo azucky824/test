@@ -977,6 +977,29 @@ class KindleScreenshotGUI:
 
             activate_kindle_window(hwnd)
 
+            # 既存ファイルの上書き確認
+            save_dir = osp.join(save_folder, title)
+            parent_dir = save_folder
+            pdf_path = osp.join(parent_dir, f'{title}.pdf')
+
+            # 画像フォルダまたはPDFファイルが既に存在する場合の確認
+            existing_items = []
+            if osp.exists(save_dir):
+                existing_items.append(f"フォルダ '{title}'")
+            if create_pdf and osp.exists(pdf_path):
+                existing_items.append(f"PDFファイル '{title}.pdf'")
+
+            if existing_items:
+                items_str = "\n".join([f"- {item}" for item in existing_items])
+                result = messagebox.askyesno(
+                    "上書き確認",
+                    f"以下のファイル/フォルダが既に存在します:\n\n{items_str}\n\n上書きしますか？",
+                    icon='warning'
+                )
+                if not result:
+                    self.log("\nユーザーによってキャンセルされました")
+                    return
+
             # 保存ディレクトリを作成
             save_dir = create_save_directory(save_folder, title)
             self.log(f"保存先: {save_dir}")
