@@ -476,7 +476,7 @@ def wait_for_page_change(old_img, left, right, top=None, bottom=None, timeout=5.
 
 
 def perform_ocr_on_pdf(pdf_path, log_callback):
-    """PDFにOCRを実行して検索可能なPDFを生成する
+    """PDFにOCRを実行して検索可能なPDFを生成する（EasyOCR使用）
 
     Args:
         pdf_path: 入力PDFファイルのパス
@@ -486,71 +486,83 @@ def perform_ocr_on_pdf(pdf_path, log_callback):
         成功時: OCR処理後のPDFパス、失敗時: None
     """
     try:
-        import ocrmypdf
+        import easyocr
+        import fitz  # PyMuPDF
 
         log_callback("\nOCR処理を開始...")
-        log_callback("⚠ 初回実行時は時間がかかる場合があります")
+        log_callback("⚠ 初回実行時はモデルのダウンロードで時間がかかります")
 
-        # 出力ファイル名（元のファイルを上書き）
-        output_path = pdf_path
+        # EasyOCR Readerを初期化（日本語と英語）
+        log_callback("OCRエンジンを初期化中（日本語+英語）...")
+        reader = easyocr.Reader(['ja', 'en'], gpu=False)
 
-        # 一時ファイルを作成
+        # PDFを開く
+        doc = fitz.open(pdf_path)
+        log_callback(f"PDF読み込み完了: {len(doc)} ページ")
+
+        # 各ページにOCRを実行してテキストレイヤーを追加
+        for page_num in range(len(doc)):
+            log_callback(f"ページ {page_num + 1}/{len(doc)} を処理中...")
+
+            page = doc[page_num]
+
+            # ページを画像として取得
+            pix = page.get_pixmap(matrix=fitz.Matrix(2, 2))  # 2倍解像度
+            img_data = pix.tobytes("png")
+
+            # 画像をnumpy配列に変換
+            from PIL import Image as PILImage
+            import io
+            pil_img = PILImage.open(io.BytesIO(img_data))
+            img_array = np.array(pil_img)
+
+            # OCR実行
+            results = reader.readtext(img_array, detail=1)
+
+            # テキストレイヤーを追加
+            for (bbox, text, conf) in results:
+                # 座標を取得（EasyOCRの座標は2倍解像度なので元に戻す）
+                x_min = min(bbox[0][0], bbox[1][0], bbox[2][0], bbox[3][0]) / 2
+                y_min = min(bbox[0][1], bbox[1][1], bbox[2][1], bbox[3][1]) / 2
+                x_max = max(bbox[0][0], bbox[1][0], bbox[2][0], bbox[3][0]) / 2
+                y_max = max(bbox[0][1], bbox[1][1], bbox[2][1], bbox[3][1]) / 2
+
+                # PDFの座標系に変換（左下原点）
+                rect = fitz.Rect(x_min, page.rect.height - y_max, x_max, page.rect.height - y_min)
+
+                # 透明テキストを追加（信頼度が0.3以上のもののみ）
+                if conf >= 0.3:
+                    page.insert_text(rect.tl, text, fontsize=10, color=(1, 1, 1), overlay=False)
+
+        # 一時ファイルに保存
         temp_output = pdf_path.replace('.pdf', '_ocr_temp.pdf')
+        doc.save(temp_output)
+        doc.close()
 
-        # OCR実行（日本語と英語）
-        log_callback("OCRエンジンを実行中（日本語+英語）...")
-
-        result = ocrmypdf.ocr(
-            pdf_path,
-            temp_output,
-            language='jpn+eng',  # 日本語と英語
-            deskew=True,         # 傾き補正
-            force_ocr=True,      # 既存のテキストを無視してOCR実行
-            optimize=1,          # 軽度の最適化
-            output_type='pdf',   # PDF出力
-            progress_bar=False,  # プログレスバーを無効化
-        )
-
-        # 一時ファイルを元のファイルに置き換え
+        # 元のファイルを置き換え
         if osp.exists(temp_output):
-            if osp.exists(output_path):
-                os.remove(output_path)
-            os.rename(temp_output, output_path)
+            if osp.exists(pdf_path):
+                os.remove(pdf_path)
+            os.rename(temp_output, pdf_path)
 
-            file_size = osp.getsize(output_path) / (1024 * 1024)
+            file_size = osp.getsize(pdf_path) / (1024 * 1024)
             log_callback(f"✓ OCR処理完了")
-            log_callback(f"  - 検索可能なPDF: {output_path}")
+            log_callback(f"  - 検索可能なPDF: {pdf_path}")
             log_callback(f"  - ファイルサイズ: {file_size:.2f} MB")
-            return output_path
+            return pdf_path
         else:
             log_callback("⚠ OCR処理に失敗しました")
             return None
 
-    except ImportError:
-        log_callback("⚠ OCRmyPDFがインストールされていません")
-        log_callback("  インストール方法: pip install ocrmypdf")
-        log_callback("  Tesseractも必要です: https://github.com/tesseract-ocr/tesseract")
+    except ImportError as e:
+        log_callback(f"⚠ 必要なライブラリがインストールされていません: {e}")
+        log_callback("  インストール方法:")
+        log_callback("  pip install easyocr pymupdf")
         return None
     except Exception as e:
-        error_msg = str(e)
-        log_callback(f"⚠ OCR処理中にエラーが発生: {error_msg}")
-
-        # Tesseractが見つからない場合の詳細案内
-        if "tesseract" in error_msg.lower() and "path" in error_msg.lower():
-            log_callback("\n【Tesseract OCRのインストールが必要です】")
-            log_callback("1. Tesseractをダウンロード:")
-            log_callback("   https://github.com/UB-Mannheim/tesseract/wiki")
-            log_callback("   → 最新版のインストーラー (.exe) をダウンロード")
-            log_callback("")
-            log_callback("2. インストール時の注意:")
-            log_callback("   ✓ 'Additional language data' で日本語(jpn)を選択")
-            log_callback("   ✓ デフォルトのインストール先でOK")
-            log_callback("   ✓ インストール後、PCを再起動してください")
-            log_callback("")
-            log_callback("3. インストール確認:")
-            log_callback("   コマンドプロンプトで: tesseract --version")
-            log_callback("")
-            log_callback("参考: https://tesseract-ocr.github.io/tessdoc/Installation.html")
+        log_callback(f"⚠ OCR処理中にエラーが発生: {e}")
+        import traceback
+        log_callback(traceback.format_exc())
 
         # 一時ファイルをクリーンアップ
         temp_output = pdf_path.replace('.pdf', '_ocr_temp.pdf')
