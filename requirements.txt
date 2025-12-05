@@ -1,0 +1,8 @@
+# Kindle Screenshot Tool - 必要なライブラリ
+# ページキャプチャ、目次取得、PDF生成機能を含む
+
+pyautogui>=0.9.53      # キーボード・マウス操作
+Pillow>=9.0.0          # 画像処理・PDF生成
+opencv-python>=4.5.0   # 画像処理・コンテンツ領域検出
+numpy>=1.21.0          # 数値計算
+pyinstaller>=5.0.0     # EXE変換

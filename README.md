@@ -1,169 +1,206 @@
-# Kindle to PDF Converter
+# Kindle Screenshot Tool
 
-Kindle Cloud Readerで開いている書籍を、自動的にスクリーンショットを取得しながらPDFファイルに変換するブラウザ拡張機能です。
+Kindle for PC の本を自動的にキャプチャして、PNG画像およびPDFとして保存するPythonツールです。
 
-## 特徴
+## 主な機能
 
-- **自動ページめくり**: 常に1ページ目から指定した終了ページまで自動キャプチャ ✨ 改善
-- **右開き/左開き自動判定**: 縦書き/横書きを自動検出してPDF生成 🆕
-- **高品質PDF生成**: スクリーンショットベースで高品質なPDFを作成
-- **目次保持**: Kindle Cloud Readerから目次情報を取得してPDFに追加
-- **画像品質調整**: ファイルサイズと画質のバランスを調整可能
-- **Chrome/Firefox対応**: Manifest V3で両ブラウザに対応
-- **完全ローカル処理**: すべての処理はブラウザ内で完結（外部サーバー不要）
+✅ **自動ページキャプチャ** - 本のページを自動的にスクリーンショット
+✅ **PDF生成** - キャプチャした画像を1つのPDFファイルにまとめる
+✅ **目次取得** - 本の目次を画像として保存
+✅ **コンテンツ領域自動検出** - 余白を自動的に除去
+✅ **本のタイトル自動取得** - Kindleウィンドウから本のタイトルを自動検出 🆕
+✅ **GUI/CLIの両方に対応** - 使いやすいGUIと自動化可能なCLI 🆕
+✅ **EXE形式** - 実行ファイルとして配布可能
 
-## 注意事項
+## クイックスタート
 
-**重要**: この拡張機能は個人の私的使用のみを目的としています。著作権法を遵守し、変換したPDFの配布や共有は行わないでください。
+### 方法1: GUI版（推奨）
 
-## 対応サイト
+```bash
+# 必要なライブラリをインストール
+pip install -r requirements.txt
 
-- Kindle Cloud Reader (https://read.amazon.com/*)
-- Kindle Cloud Reader JP (https://read.amazon.co.jp/*)
+# GUI版を実行
+python kindle_screenshot_gui.py
+```
 
-## インストール方法
+### 方法2: CLI版（コマンドライン）
 
-### Chrome
+```bash
+# 必要なライブラリをインストール
+pip install -r requirements.txt
 
-1. このリポジトリをダウンロードまたはクローン
-2. Chromeで `chrome://extensions/` を開く
-3. 右上の「デベロッパーモード」を有効化
-4. 「パッケージ化されていない拡張機能を読み込む」をクリック
-5. このプロジェクトのルートフォルダを選択
+# CLI版を実行
+python kindle_screenshot.py
+```
 
-### Firefox
+### 方法3: EXE形式で実行（Windows）
 
-1. このリポジトリをダウンロードまたはクローン
-2. Firefoxで `about:debugging#/runtime/this-firefox` を開く
-3. 「一時的なアドオンを読み込む」をクリック
-4. このプロジェクトの `manifest.json` を選択
+```bash
+# EXEをビルド
+build_exe.bat
 
-## 使用方法
+# GUI版を実行
+dist\KindleScreenshotGUI.exe
 
-1. Kindle Cloud Readerで書籍を開く
-2. ブラウザのツールバーにある拡張機能アイコンをクリック
-3. 変換設定を入力：
-   - **終了ページ**: キャプチャを終了するページ番号（※常に1ページ目から開始）
-   - **キャプチャ間隔**: ページめくりの間隔（秒）（デフォルト: 2秒）
-   - **画像品質**: 50%-100%の範囲で調整（デフォルト: 90%）
-   - **OCR機能**: テキスト抽出を有効化（実験的機能、準備中） 🚧
-4. 「キャプチャ開始」ボタンをクリック
-5. 進捗バーで状況を確認
-6. 完了後、PDFファイルが自動的にダウンロードされます
-   - **目次がある書籍**: PDFの最初のページに目次が追加されます
-   - **縦書き書籍**: 自動検出され、ページ順が調整されます 🆕
-   - **ファイル名**: 書籍タイトルと読み方向が自動的に含まれます
+# または CLI版を実行
+dist\KindleScreenshotCLI.exe
+```
+
+## 使い方
+
+### GUI版
+
+1. **Kindle for PC** で本を開く
+2. **kindle_screenshot_gui.py** を実行
+3. GUI画面が表示されます：
+   - 📖 **本のタイトル**: 自動検出されます（編集可能）
+   - 📁 **保存先**: フォルダを選択
+   - ⚙️ **オプション**: PDF生成、目次キャプチャ、待機時間を設定
+4. **「▶ キャプチャ開始」** ボタンをクリック
+5. 自動的に以下が実行されます：
+   - 📖 目次のキャプチャ（オプション）
+   - 📄 フルスクリーンで各ページをキャプチャ
+   - 📕 すべてのページを1つのPDFに変換（オプション）
+6. ログでリアルタイムに進捗を確認
+
+### CLI版
+
+1. **Kindle for PC** で本を開く
+2. **kindle_screenshot.py** を実行
+3. ダイアログでタイトルを入力
+4. 自動的にキャプチャが開始されます
+
+## 出力ファイル
+
+デフォルトの保存先: `e:\kss\[タイトル名]\`
+
+```
+e:\kss\タイトル\
+├── 001.png                    # 1ページ目
+├── 002.png                    # 2ページ目
+├── ...
+├── table_of_contents.png      # 目次
+└── タイトル.pdf                # 全ページまとめたPDF
+```
+
+## 設定のカスタマイズ
+
+`kindle_screenshot.py` の先頭で以下の設定を変更できます：
+
+```python
+# 保存先
+BASE_SAVE_FOLDER = 'e:\\kss\\'
+
+# ページめくりキー
+PAGE_CHANGE_KEY = 'left'  # 'right' にすると右から左へめくる
+
+# フルスクリーンキー
+KINDLE_FULLSCREEN_KEY = 'f11'
+
+# 待機時間
+WAIT_SEC = 0.15               # ページ読み込み待機時間
+KINDLE_FULLSCREEN_WAIT = 5    # フルスクリーン後の待機時間
+
+# 機能の有効/無効
+CREATE_PDF = True   # PDF生成を行うか
+CAPTURE_TOC = True  # 目次をキャプチャするか
+```
+
+## トラブルシューティング
+
+### 「Kindleが見つかりません」と表示される
+→ Kindle for PC を起動してから実行してください
+
+### ページが正しくキャプチャされない
+→ `WAIT_SEC` の値を大きくしてください（例: `0.3`）
+
+### PDF生成に失敗する
+→ PNG画像は正常に保存されているはずです
+→ 手動でPNG画像からPDFを作成できます
+
+### 目次が正しくキャプチャされない
+→ 本によっては目次機能がない場合があります
+→ `CAPTURE_TOC = False` に設定して無効化できます
+
+## システム要件
+
+- **OS**: Windows 10/11
+- **ソフトウェア**: Kindle for PC
+- **Python**: 3.7以上（スクリプト実行時）
+- **画面解像度**: 1920x1080 以上推奨
+
+## 技術詳細
+
+### 依存ライブラリ
+
+- **pyautogui** - キーボード・マウス操作の自動化
+- **Pillow** - 画像処理・PDF生成
+- **opencv-python** - 画像処理・コンテンツ領域の自動検出
+- **numpy** - 数値計算・画像比較
+- **pyinstaller** - EXE形式への変換
+
+### 動作フロー
+
+1. **Kindleウィンドウの検出** - Windows APIを使用してKindleを検索
+2. **目次のキャプチャ** - Ctrl+Tで目次を開いてスクリーンショット
+3. **フルスクリーン化** - F11キーでフルスクリーン表示
+4. **コンテンツ領域検出** - 画像解析で本文領域を自動検出
+5. **ページキャプチャループ**:
+   - 現在のページをキャプチャ
+   - 前のページと比較して変化を確認
+   - 左矢印キーで次ページへ
+   - ページが変わらなくなるまで繰り返し
+6. **PDF生成** - すべての画像を1つのPDFファイルに結合
 
 ## プロジェクト構造
 
 ```
-kindle-to-pdf-extension/
-├── manifest.json                 # 拡張機能の設定ファイル
-├── README.md                     # このファイル
-├── icons/                        # アイコン画像
-│   ├── icon16.png
-│   ├── icon48.png
-│   └── icon128.png
-├── popup/                        # ポップアップUI
-│   ├── popup.html
-│   ├── popup.css
-│   └── popup.js
-├── background/                   # バックグラウンドスクリプト
-│   └── background.js
-├── content/                      # コンテンツスクリプト
-│   └── content.js
-├── lib/                         # 外部ライブラリ
-│   ├── browser-polyfill.min.js  # ブラウザ互換性
-│   └── jspdf.umd.min.js         # PDF生成
-└── utils/                       # ユーティリティ関数
-    ├── capture.js               # キャプチャ処理
-    └── pdf-generator.js         # PDF生成処理
+kindle-screenshot-tool/
+├── kindle_screenshot_gui.py  # GUIバージョン（推奨）
+├── kindle_screenshot.py      # CLIバージョン
+├── requirements.txt          # 必要なライブラリ
+├── build_exe.bat            # EXEビルドスクリプト
+├── BUILD_INSTRUCTIONS.md    # 詳細なビルド手順
+├── README_EXE.txt          # EXE版の使い方
+└── README.md               # このファイル
 ```
 
-## 技術スタック
+## ドキュメント
 
-- **Manifest Version**: 3
-- **互換性ライブラリ**: webextension-polyfill
-- **PDF生成**: jsPDF
-- **画像処理**: Canvas API
+- **[BUILD_INSTRUCTIONS.md](BUILD_INSTRUCTIONS.md)** - 詳細なビルド手順
+- **[README_EXE.txt](README_EXE.txt)** - EXE版の使い方
 
-## 制限事項
+## 注意事項
 
-1. すべての書籍がKindle Cloud Readerで開けるわけではありません
-2. スクリーンショットは表示画面サイズに依存します（フルスクリーン表示推奨）
-3. 長時間の処理中はブラウザをアクティブに保つ必要があります
-4. DRM保護されたコンテンツに対してDRM解除は行いません
-
-## トラブルシューティング
-
-### キャプチャが開始されない
-
-- Kindle Cloud Readerのページで拡張機能を実行していることを確認
-- ブラウザの開発者ツールでエラーメッセージを確認
-
-### ページ番号が取得できない
-
-- Kindle Cloud Readerの仕様が変更された可能性があります
-- GitHubのIssuesで報告してください
-
-### PDFが生成されない
-
-- 大量のページをキャプチャする場合、メモリ不足の可能性があります
-- ページ範囲を小さくして再試行してください
-
-## 開発
-
-### 必要な依存関係
-
-このプロジェクトは以下の外部ライブラリを使用します：
-
-- [webextension-polyfill](https://github.com/mozilla/webextension-polyfill) (v0.10.0以上)
-- [jsPDF](https://github.com/parallax/jsPDF) (v2.5.0以上)
-
-### セットアップ
-
-```bash
-# 外部ライブラリのダウンロード（開発時）
-# browser-polyfill
-curl -o lib/browser-polyfill.min.js https://unpkg.com/webextension-polyfill@latest/dist/browser-polyfill.min.js
-
-# jsPDF
-curl -o lib/jspdf.umd.min.js https://unpkg.com/jspdf@latest/dist/jspdf.umd.min.js
-```
-
-## ライセンス
-
-このプロジェクトは個人の学習および私的使用を目的としています。
+**重要**: このツールは個人の私的使用のみを目的としています。著作権法を遵守してご利用ください。
 
 ## 免責事項
 
-- この拡張機能は教育目的で作成されています
+- このツールは教育目的で作成されています
 - 著作権法を遵守し、個人の私的使用の範囲内でのみ使用してください
 - 変換したコンテンツの配布や共有は違法です
-- 開発者は本拡張機能の使用によって生じたいかなる損害についても責任を負いません
+- 開発者は本ツールの使用によって生じたいかなる損害についても責任を負いません
 
-## Phase 1 (MVP) の実装状況
+## ライセンス
 
-- [x] プロジェクト初期設定
-- [ ] 基本UI実装
-- [ ] browser-polyfill導入
-- [ ] content.js基本実装
-- [ ] background.js基本実装
-- [ ] ページめくり自動化
-- [ ] PDF生成機能
-- [ ] 統合テスト
-- [ ] 最適化
-- [ ] ブラウザ別テスト
+このツールは個人利用のみを目的としています。
 
-## 今後の予定（Phase 2以降）
+## 変更履歴
 
-- OCR機能（Tesseract.js使用）
-- 画像圧縮オプション
-- しおり・目次の保持
-- 複数書籍の一括変換
+### v1.2.0 (最新)
+- ✨ GUI版を追加（使いやすいインターフェース）
+- ✨ 本のタイトル自動取得機能
+- ✨ リアルタイム進捗表示
+- ✨ 停止ボタンの追加
+- 🔧 GUI/CLI両対応
 
-## バージョン履歴
+### v1.1.0
+- ✨ PDF生成機能を追加
+- ✨ 目次キャプチャ機能を追加
+- 🔧 設定のカスタマイズ性を向上
 
-### v1.0.0 (開発中)
-- 初期リリース
-- 基本的なキャプチャ＆PDF生成機能
+### v1.0.0
+- 🐛 keyDownリークを修正
+- ✨ エラーハンドリングを追加
+- 🔧 コードをモジュール化・リファクタリング
